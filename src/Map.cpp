@@ -1,8 +1,8 @@
 #include "Map.h"
 
 
-Map::Map(){
-    
+Map::addPoint(Point* p){
+
 }
 
   
