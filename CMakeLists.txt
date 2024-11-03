@@ -1,0 +1,10 @@
+cmake_minimum_required(VERSION 3.16)
+project(slam LANGUAGES CXX)
+
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
+find_package( OpenCV REQUIRED )
+include_directories( ${OpenCV_INCLUDE_DIRS} )
+add_executable(slam main.cpp)
+target_link_libraries( slam ${OpenCV_LIBS} )
