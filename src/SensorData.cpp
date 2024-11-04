@@ -1,7 +1,7 @@
 
 #include "SensorData.hpp"
 
-Feature SensorData::extractFeature(std::vector<Point> image){
+Feature SensorData::extractFeature(cv::Mat image){
     Feature f;
     return f;
 }
