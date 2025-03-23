@@ -1,5 +1,9 @@
+#include <cmath>
+#include <iostream>
+#include "MatrixFunctions.hpp"
 
-class EKFslam{
+class EKFslam {
+
   private:
     EKFslam();
     static const int STATE_SIZE = 3;
@@ -8,10 +12,10 @@ class EKFslam{
     double covariance_matrix[STATE_SIZE][STATE_SIZE];
     double motion_noise[STATE_SIZE][STATE_SIZE];
     double measurement_noise[LANDMARK_SIZE][LANDMARK_SIZE];
-    void motionModel(double control[2]);
+    //void motionModel(double control[2]);
   public:
-    void predict(double control[2]); 
-    void update(double measurement[2]);
+    // void predict(double control[2]); 
+    // void update(double measurement[2]);
     void printState();
-}
+};
   
