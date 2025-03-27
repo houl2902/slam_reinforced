@@ -7,9 +7,8 @@
 class MatrixOperations {
    public:
    void matrixMultiply(Matrix mat1, Matrix mat2, Matrix result);
-    //  void matrixTranspose3x3( double A[MATRIX_SIZE][MATRIX_SIZE], double result[MATRIX_SIZE][MATRIX_SIZE]);
-    //  void matrixAdd( double A[MATRIX_SIZE][MATRIX_SIZE],  double B[MATRIX_SIZE][MATRIX_SIZE], double result[MATRIX_SIZE][MATRIX_SIZE]);
-    //  void matrixSubtract( double A[MATRIX_SIZE][MATRIX_SIZE],  double B[MATRIX_SIZE][MATRIX_SIZE], double result[MATRIX_SIZE][MATRIX_SIZE]);
-    //  void matrixInverse( double A[MATRIX_SIZE][MATRIX_SIZE], double result[MATRIX_SIZE][MATRIX_SIZE]);
+   void matrixTranspose( Matrix mat1, Matrix result);
+   void matrixAdd( Matrix A, Matrix B, Matrix result);
+   void matrixSubtract(Matrix A, Matrix B, Matrix result);
    void matrixShow(Matrix mat);
 };

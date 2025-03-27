@@ -1,8 +1,6 @@
-#include <vector>
-#include <algorithm>
-#include <list>
-#include <iostream>
+
 #include "VisualApp.hpp"
+
 
 VisualApp::VisualApp() {
     running = true;
@@ -15,6 +13,7 @@ VisualApp::VisualApp() {
     MOVE_SPEED = 1;
     pointX = 0;
     pointY = 0;
+    trail;
 }
 
 
@@ -35,7 +34,7 @@ bool VisualApp::OnInit() {
     }
     
 
-    window = SDL_CreateWindow( "Example", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, WINDOW_HEIGHT, WINDOW_WIDTH, SDL_WINDOW_SHOWN );
+    window = SDL_CreateWindow( "SLAM", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, WINDOW_HEIGHT, WINDOW_WIDTH, SDL_WINDOW_SHOWN );
     if( !window) {
         std::cout << "Error creating window: " << SDL_GetError()  << std::endl;
 		system("pause");
@@ -87,8 +86,18 @@ void VisualApp::OnLoop(){
     // Ограничение перемещения точки в пределах окна
     if (pointX < 0) pointX = 0;
     if (pointY < 0) pointY = 0;
-    if (pointX > WINDOW_WIDTH - POINT_SIZE) pointX = WINDOW_WIDTH - POINT_SIZE;
-    if (pointY > WINDOW_HEIGHT - POINT_SIZE) pointY = WINDOW_HEIGHT - POINT_SIZE;
+    if (pointX > WINDOW_HEIGHT - POINT_SIZE) pointX = WINDOW_HEIGHT - POINT_SIZE;
+    if (pointY > WINDOW_WIDTH - POINT_SIZE) pointY = WINDOW_WIDTH - POINT_SIZE;
+    if (!trail.empty()){
+        std::pair<int,int> last = trail.back();
+        if (last.first != pointX || last.second != pointY) {
+            trail.push_back(std::make_pair(pointX + POINT_SIZE/2, pointY + POINT_SIZE/2));
+        };
+    }
+    else {
+        trail.push_back(std::make_pair(pointX + POINT_SIZE/2, pointY + POINT_SIZE/2));
+    };
+ 
     std::cout << pointX << std::endl;
     std::cout << pointY << std::endl;
 
@@ -104,6 +113,12 @@ void VisualApp::OnRender(){
     SDL_Rect pointRect = {pointX, pointY, POINT_SIZE, POINT_SIZE};
     SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255);  // Красный цвет
     SDL_RenderFillRect(renderer, &pointRect);
+    SDL_SetRenderDrawColor(renderer, 255, 255, 0, 255);
+    for (size_t i = 1; i < trail.size(); i++) {
+        SDL_RenderDrawLine(renderer, 
+                         trail[i-1].first, trail[i-1].second,
+                         trail[i].first, trail[i].second);
+    };
 
     // Обновление экрана
     SDL_RenderPresent(renderer);

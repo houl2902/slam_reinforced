@@ -1,5 +1,11 @@
 #include <SDL.h>
- 
+#include <vector>
+#include <algorithm>
+#include <list>
+#include <iostream>
+#include <functional>
+#include <utility>
+
 class VisualApp {
     private:
         bool running;
@@ -12,6 +18,7 @@ class VisualApp {
         int MOVE_SPEED;
         int pointX;
         int pointY;
+        std::vector<std::pair<int,int>> trail;
  
     public:
         VisualApp();

@@ -6,6 +6,11 @@ Matrix::Matrix(int size[2]){
     matPointer = new double[sizeMat[0] * sizeMat[1]];
 };
 
+Matrix::Matrix(int x, int y){
+    sizeMat[0] = x;
+    sizeMat[1] = y;
+    matPointer = new double[x * y];
+};
 int* Matrix::getSize(){
     return sizeMat;
 };

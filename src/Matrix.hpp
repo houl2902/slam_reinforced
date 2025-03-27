@@ -5,6 +5,7 @@ class Matrix
       double* matPointer;
     public:
       Matrix(int size[2]);
+      Matrix(int x, int y);
       double* getMatrix();
       int* getSize();
       double& operator()(int i, int j);

@@ -17,29 +17,32 @@ void MatrixOperations::matrixMultiply( Matrix mat1, Matrix mat2, Matrix result){
     }
 };
 
-// void MatrixOperations::matrixTranspose( double A[MATRIX_SIZE][MATRIX_SIZE], double result[MATRIX_SIZE][MATRIX_SIZE]){
-//     for (int i = 0; i < MATRIX_SIZE; ++i) {
-//         for (int j = 0; j < MATRIX_SIZE; ++j) {
-//             result[j][i] = A[i][j];
-//         }
-//     }
-// };
+void MatrixOperations::matrixTranspose(Matrix mat1, Matrix result){
+    int* size1 = mat1.getSize();
+    for (int i = 0; i < size1[0]; ++i) {
+        for (int j = 0; j < size1[1]; ++j) {
+            result(j,i) = mat1(i,j);
+        }
+    }
+};
 
-// void MatrixOperations::matrixAdd( double A[MATRIX_SIZE][MATRIX_SIZE],  double B[MATRIX_SIZE][MATRIX_SIZE], double result[MATRIX_SIZE][MATRIX_SIZE]){
-//     for (int i = 0; i < MATRIX_SIZE; ++i) {
-//         for (int j = 0; j < MATRIX_SIZE; ++j) {
-//             result[i][j] = A[i][j] + B[i][j];
-//         }
-//     }
-// };
+void MatrixOperations::matrixAdd(Matrix A, Matrix B, Matrix result){
+    int* size1 = A.getSize();
+    for (int i = 0; i < size1[0]; ++i) {
+        for (int j = 0; j < size1[1]; ++j) {
+            result(i,j) = A(i,j) + B(i,j);
+        }
+    }
+};
 
-// void MatrixOperations::matrixSubtract( double A[MATRIX_SIZE][MATRIX_SIZE],  double B[MATRIX_SIZE][MATRIX_SIZE], double result[MATRIX_SIZE][MATRIX_SIZE]){
-//     for (int i = 0; i < MATRIX_SIZE; ++i) {
-//         for (int j = 0; j < MATRIX_SIZE; ++j) {
-//             result[i][j] = A[i][j] - B[i][j];
-//         }
-//     }
-// };
+void MatrixOperations::matrixSubtract(Matrix A, Matrix B, Matrix result){
+    int* size1 = A.getSize();
+    for (int i = 0; i < size1[0]; ++i) {
+        for (int j = 0; j < size1[1]; ++j) {
+            result(i,j) = A(i,j) - B(i,j);
+        }
+    }
+};
 
 // void MatrixOperations::matrixInverse( double A[MATRIX_SIZE][MATRIX_SIZE], double result[MATRIX_SIZE][MATRIX_SIZE]){
 //     // Простая реализация для 3x3 матрицы
@@ -68,7 +71,7 @@ void MatrixOperations::matrixMultiply( Matrix mat1, Matrix mat2, Matrix result){
 // };
 
 
-void MatrixOperations::matrixShow( Matrix mat){
+void MatrixOperations::matrixShow(Matrix mat){
     int* matSize = mat.getSize();
     for (int i = 0; i < matSize[0]; ++i) {
         for (int j = 0; j < matSize[1]; ++j) {
