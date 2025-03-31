@@ -19,9 +19,6 @@ double* Matrix::getMatrix(){
     return matPointer;
 };
 
-// Matrix::~Matrix() {
-//     delete[] matPointer;  // Освобождаем память
-// }
 
 double& Matrix::operator() (int i, int j) {
     if (i < 0 || i >= sizeMat[0] || j < 0 || j >= sizeMat[1]) {

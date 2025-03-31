@@ -11,13 +11,17 @@ VisualApp::VisualApp() {
     WINDOW_HEIGHT = 1280;
     POINT_SIZE = 15;
     MOVE_SPEED = 1;
-    virtual_pos_X = 0;
-    virtual_pos_Y = 0;
+    virtual_pos_X = 100;
+    virtual_pos_Y = 100;
+    slam_virtual_pos_X = 0;
+    slam_virtual_pos_Y = 0;
+    slam_rotation = 0;
     pointX = 0;
     pointY = 0;
     rotation = 0.0;
     rotationSpeed = 0.5;
     trail;
+    slam_trail;
 }
 
 
@@ -60,7 +64,7 @@ bool VisualApp::OnInit() {
     return true;
 }
 
-int VisualApp::OnExecute() {
+int VisualApp::OnExecute(EKFslam* slam_obj) {
     if(VisualApp::OnInit() == false) {
         return -1;
     }
@@ -71,8 +75,8 @@ int VisualApp::OnExecute() {
         while(SDL_PollEvent(&Event)) {
             VisualApp::OnEvent(&Event);
         }
- 
-        VisualApp::OnLoop();
+
+        VisualApp::OnLoop(slam_obj);
         VisualApp::OnRender();
     }
  
@@ -80,30 +84,61 @@ int VisualApp::OnExecute() {
  
     return 0;
 }
-void VisualApp::OnLoop(){
+void VisualApp::OnLoop(EKFslam* slam_obj){
     // Обработка нажатий клавиш
     const Uint8* keys = SDL_GetKeyboardState(NULL);
 
     double x_move_offset = cos(rotation * M_PI / 180.0)*MOVE_SPEED;
     double y_move_offset = sin(rotation * M_PI / 180.0)*MOVE_SPEED;
-    
+    double control[2] = {0,0};
     if (keys[SDL_SCANCODE_W]) {
         virtual_pos_X-=x_move_offset;
         virtual_pos_Y-=y_move_offset;
+        control[0] = MOVE_SPEED;
     }; // Движение вверх
     if (keys[SDL_SCANCODE_S]) {
         virtual_pos_X+=x_move_offset;
         virtual_pos_Y+=y_move_offset;
+        control[0] = MOVE_SPEED;
     };  // Движение вниз
-    if (keys[SDL_SCANCODE_A]) rotation += rotationSpeed;
-    if (keys[SDL_SCANCODE_D]) rotation -= rotationSpeed;
+    if (keys[SDL_SCANCODE_A]){
+        rotation += rotationSpeed;
+        control[1] = rotationSpeed;
+    } 
+    if (keys[SDL_SCANCODE_D]){
+        rotation -= rotationSpeed;
+        control[1] = rotationSpeed;
+    } 
+    // std::cout << virtual_pos_X << std::endl;
+    // std::cout << virtual_pos_Y << std::endl;
+    // std::cout << rotation << std::endl;
+    // std::cout << x_move_offset << std::endl;
+    // std::cout << y_move_offset << std::endl;
+    // std::cout << pointX << std::endl;
+    // std::cout << pointY << std::endl;
+    // std::cout << slam_obj << std::endl;
+
+    slam_obj->predict(&control[2]);
+    double measurements[2] = {std::sqrt(virtual_pos_X*virtual_pos_X+virtual_pos_Y*virtual_pos_Y),rotation*M_PI / 180.0};
+    std::cout << "=================" << std::endl;
+    std::cout << measurements[0] << std::endl;
+    std::cout << measurements[1] << std::endl;
+    std::cout << "=================" << std::endl;
+    slam_obj->update(&measurements[2]);
+
+    slam_virtual_pos_X = slam_obj->state[0];
+    slam_virtual_pos_Y = slam_obj->state[1];
+    slam_rotation = slam_obj->state[2];
     std::cout << virtual_pos_X << std::endl;
     std::cout << virtual_pos_Y << std::endl;
+    
     std::cout << rotation << std::endl;
     std::cout << x_move_offset << std::endl;
     std::cout << y_move_offset << std::endl;
     std::cout << pointX << std::endl;
     std::cout << pointY << std::endl;
+    std::cout << slam_virtual_pos_X << std::endl;
+    std::cout << slam_virtual_pos_Y << std::endl;
     // Ограничение перемещения точки в пределах окна
     if (rotation > 360) rotation -= 360;
     if (rotation < 0) rotation += 360;
@@ -113,8 +148,9 @@ void VisualApp::OnLoop(){
     pointX = static_cast<int>(virtual_pos_X);
     pointY = static_cast<int>(virtual_pos_Y);
     // Ограничение перемещения
-    pointX = std::max(0, std::min(WINDOW_HEIGHT - POINT_SIZE, pointX));
-    pointY = std::max(0, std::min(WINDOW_WIDTH - POINT_SIZE, pointY));
+    
+    // pointX = std::max(0, std::min(WINDOW_HEIGHT - POINT_SIZE, pointX));
+    // pointX = std::max(0, std::min(WINDOW_WIDTH - POINT_SIZE, pointY));
 
     // Добавление точки в трек
     if (!trail.empty()) {
@@ -167,7 +203,24 @@ void VisualApp::OnRender() {
     
     // 2. Рисуем повернутые границы
     //SDL_RenderDrawRectEx(renderer, &rect, rotation, &center);
+    SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255);
 
+    int slam_pointX = static_cast<int>(slam_virtual_pos_X);
+    int slam_pointY = static_cast<int>(slam_virtual_pos_Y);
+
+    SDL_Point points2[5];
+    points2[0] = {slam_pointX, slam_pointY};
+    points2[1] = {slam_pointX + POINT_SIZE,slam_pointY};
+    points2[2] = {slam_pointX + POINT_SIZE, slam_pointY + POINT_SIZE};
+    points2[3] = {slam_pointX, slam_pointY + POINT_SIZE};
+    points2[4] = {slam_pointX, slam_pointY}; // Замыкаем контур
+
+    SDL_Point center2 = {slam_pointX + POINT_SIZE/2, slam_pointY + POINT_SIZE/2};
+
+    for(int i = 0; i < 5; i++) {
+        points[i] = VisualApp::rotate_point(points2[i], center2, rotation);
+    };
+    SDL_RenderDrawLines(renderer,points2,5);
     // Обновление экрана
     SDL_RenderPresent(renderer);
     SDL_Delay(16);
@@ -200,26 +253,6 @@ SDL_Point VisualApp::rotate_point(SDL_Point point, SDL_Point center, double angl
     };
 }
 
-
-// Добавляем кастомную функцию для рисования повернутого прямоугольника
-int VisualApp::SDL_RenderDrawRectEx(SDL_Renderer* renderer, SDL_Rect* rect, double angle, SDL_Point* center) {
-    SDL_Point points[5];
-    
-    // Рассчитываем вершины прямоугольника
-    points[0] = {rect->x, rect->y};
-    points[1] = {rect->x + rect->w, rect->y};
-    points[2] = {rect->x + rect->w, rect->y + rect->h};
-    points[3] = {rect->x, rect->y + rect->h};
-    points[4] = {rect->x, rect->y}; // Замыкаем контур
-    
-    // Поворачиваем каждую точку
-    for(int i = 0; i < 5; i++) {
-        points[i] = VisualApp::rotate_point(points[i], *center, angle);
-    }
-    
-    // Рисуем линии между повернутыми точками
-    return SDL_RenderDrawLines(renderer, points, 5);
-}
 
 
 void VisualApp::OnCleanup() {

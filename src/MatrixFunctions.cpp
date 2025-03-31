@@ -10,8 +10,9 @@ void MatrixOperations::matrixMultiply( Matrix mat1, Matrix mat2, Matrix result){
     }
     for (int i = 0; i < size1[0]; ++i) {
         for (int j = 0; j < size2[1]; ++j) {
-            for (int k = 0; k < size1[0]; ++k) {
+            for (int k = 0; k < size1[1]; ++k) {
                 result(i,j) += mat1(i,k) * mat2(k,j);
+                
             }
         }
     }

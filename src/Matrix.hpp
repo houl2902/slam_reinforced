@@ -9,5 +9,5 @@ class Matrix
       double* getMatrix();
       int* getSize();
       double& operator()(int i, int j);
-    //   ~Matrix();
+      //~Matrix();
 };
