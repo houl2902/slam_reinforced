@@ -71,6 +71,7 @@ int VisualApp::OnExecute(EKFslam* slam_obj) {
     SDL_Event Event;
     pointX = WINDOW_WIDTH / 2 - POINT_SIZE / 2;
     pointY = WINDOW_HEIGHT / 2 - POINT_SIZE / 2;
+    int count = 0;
     while(running) {
         while(SDL_PollEvent(&Event)) {
             VisualApp::OnEvent(&Event);
@@ -78,6 +79,11 @@ int VisualApp::OnExecute(EKFslam* slam_obj) {
 
         VisualApp::OnLoop(slam_obj);
         VisualApp::OnRender();
+        count++;
+        // if (count>30){
+        //     running = false;
+        // }
+        
     }
  
     VisualApp::OnCleanup();
@@ -90,6 +96,10 @@ void VisualApp::OnLoop(EKFslam* slam_obj){
 
     double x_move_offset = cos(rotation * M_PI / 180.0)*MOVE_SPEED;
     double y_move_offset = sin(rotation * M_PI / 180.0)*MOVE_SPEED;
+    
+
+    // 2. Улучшенные измерения (добавить проверку деления на ноль)
+    
     double control[2] = {0,0};
     if (keys[SDL_SCANCODE_W]) {
         virtual_pos_X-=x_move_offset;
@@ -117,14 +127,29 @@ void VisualApp::OnLoop(EKFslam* slam_obj){
     // std::cout << pointX << std::endl;
     // std::cout << pointY << std::endl;
     // std::cout << slam_obj << std::endl;
+    std::cout << "START MEASURMENT" << std::endl;
+    std::cout << "!!!!!!!!!!!!!!!!!!!" << std::endl;
+    std::cout << control[0] << std::endl;
+    std::cout << control[1] << std::endl;
+    std::cout << "!!!!!!!!!!!!!!!!!!!" << std::endl;
+    rotation = std::fmod(rotation, 360.0);
+    if (rotation > 180.0) rotation -= 360.0;
+    if (rotation < -180.0) rotation += 360.0;
+    double distance = std::hypot(virtual_pos_X, virtual_pos_Y);
+    if (distance < 1e-10) distance = 1e-10;
+    
+    //double angle = std::atan2(virtual_pos_Y, virtual_pos_X)
 
-    slam_obj->predict(&control[2]);
-    double measurements[2] = {std::sqrt(virtual_pos_X*virtual_pos_X+virtual_pos_Y*virtual_pos_Y),rotation*M_PI / 180.0};
+    slam_obj->predict(control);
+    double measurements[2] = {distance,rotation*M_PI / 180.0};
     std::cout << "=================" << std::endl;
     std::cout << measurements[0] << std::endl;
     std::cout << measurements[1] << std::endl;
     std::cout << "=================" << std::endl;
-    slam_obj->update(&measurements[2]);
+    // if (!std::isnan(measurements[0]) && !std::isnan(measurements[1])){
+    //     slam_obj->update(measurements);
+    // }
+    
 
     slam_virtual_pos_X = slam_obj->state[0];
     slam_virtual_pos_Y = slam_obj->state[1];

@@ -5,7 +5,7 @@
 
 class EKFslam {
   
-  private:
+  public:
     MatrixOperations matrixOps;
     static const int STATE_SIZE = 3;
     static const int LANDMARK_SIZE = 2;
@@ -13,12 +13,12 @@ class EKFslam {
     Matrix motion_noise;
     Matrix measurement_noise;
     //void motionModel(double control[2]);
-  public:
     EKFslam();
     std::default_random_engine noise_generator;
     double vel_noise_std;    // Стандартное отклонение для линейной скорости
     double ang_vel_noise_std; // Стандартное отклонение для угловой скорости
     double state[STATE_SIZE];
+    double was_states[STATE_SIZE];
     void makeNoisyControl(double control[2]);
     void predict(double control[2]); 
     void update(double measurement[2]);

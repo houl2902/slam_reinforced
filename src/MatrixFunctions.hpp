@@ -6,6 +6,8 @@
 
 class MatrixOperations {
    public:
+   inline bool isProblematic(double val);
+   inline double safeValue(double val);
    void matrixMultiply(Matrix mat1, Matrix mat2, Matrix result);
    void matrixTranspose( Matrix mat1, Matrix result);
    void matrixAdd( Matrix A, Matrix B, Matrix result);

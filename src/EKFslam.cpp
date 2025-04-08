@@ -9,6 +9,9 @@ EKFslam::EKFslam() : motion_noise(3, 3), covariance_matrix(3, 3), measurement_no
     vel_noise_std = 0.1;    // Стандартное отклонение для линейной скорости
     ang_vel_noise_std = 0.05; 
     noisy_control[2];
+    was_states[0] = 100;
+    was_states[1] = 100;
+    was_states[2] = 0.0001;
     // Инициализация ковариационной матрицы
     for (int i = 0; i < STATE_SIZE; ++i) {
         for (int j = 0; j < STATE_SIZE; ++j) {
@@ -43,16 +46,32 @@ void EKFslam::makeNoisyControl(double control[2]) {
 
 void EKFslam::predict(double control[2]) {
     // Модель движения робота
-    double dt = 0.016; // Временной шаг
+    double dt = 1; // Временной шаг
     double v = control[0]; // Линейная скорость
     double w = control[1]; // Угловая скорость
+    std::cout << "HERE00" << std::endl;
+    std::cout << control[0] << std::endl;
+    std::cout << control[1] << std::endl;
+    makeNoisyControl(control);
+    std::cout << "HERE11" << std::endl;
+    std::cout << control[0] << std::endl;
+    std::cout << control[1] << std::endl;
 
-    makeNoisyControl(&control[2]);
+
     // Обновление состояния
+    std::cout << "__________________" << std::endl;
+    std::cout << std::sin(state[2]) << std::endl;
+    std::cout << "__________________" << std::endl;
     state[0] += v * std::cos(state[2]) * dt; // x
     state[1] += v * std::sin(state[2]) * dt; // y
     state[2] += w * dt; // theta
-
+    std::cout << "HERE22" << std::endl;
+    std::cout << state[0] << std::endl;
+    std::cout << state[1] << std::endl;
+    std::cout << state[2] << std::endl;
+    
+    //std::cout <<  << std::endl;
+    std::cout << "++++++++++++++++++++" << std::endl;
     Matrix F(3,3);
     // Матрица Якоби для модели движения (F)
     F(0,0) = 1;
@@ -60,14 +79,27 @@ void EKFslam::predict(double control[2]) {
     F(1,1) = 1;
     F(1,2) = v * std::cos(state[2]) * dt;
     F(2,2) = 1;
-
+    std::cout << "HERE444" << std::endl;
+    matrixOps.matrixShow(F);
+    
     // Обновление ковариации
     Matrix FT(3,3);
     matrixOps.matrixTranspose(F, FT);
+    std::cout << "HERE441" << std::endl;
+    matrixOps.matrixShow(FT);
     Matrix temp(3,3);
     matrixOps.matrixMultiply(F, covariance_matrix, temp);
+    std::cout << "HERE43" << std::endl;
+    matrixOps.matrixShow(temp);
+    matrixOps.matrixShow(FT);
     matrixOps.matrixMultiply(temp, FT, covariance_matrix);
+    matrixOps.matrixShow(covariance_matrix);
+    std::cout << "HERE42" << std::endl;
+    matrixOps.matrixShow(covariance_matrix);
     matrixOps.matrixAdd(covariance_matrix, motion_noise, covariance_matrix);
+    std::cout << "HERE44" << std::endl;
+    matrixOps.matrixShow(covariance_matrix);
+    matrixOps.matrixShow(F);
     // delete[] temp.getMatrix(); 
     // delete[] F.getMatrix(); 
     // delete[] FT.getMatrix(); 
@@ -76,11 +108,20 @@ void EKFslam::predict(double control[2]) {
 void EKFslam::update(double measurement[2]) {
     // Матрица Якоби для модели наблюдения (H)
 
+
     const double theta = state[2];
     const double x = state[0], y = state[1];
     double r_squared = x*x + y*y;
-    if (r_squared == 0) r_squared = 0.00001;
+    
+    if (fabs(r_squared) < 1e-10) {
+    r_squared = (x*x + y*y < 0) ? -1e-10 : 1e-10;
+    }
     Matrix H(2,3);
+    std::cout << "x: " << x << std::endl;
+    std::cout << "y: " << y << std::endl;
+    std::cout << "r_squared: " << r_squared << std::endl;
+    std::cout << "theta: " << theta << std::endl;
+    
     H(0,0) = -std::cos(theta);
     H(0,1) = -std::sin(theta);
     H(1,0) = std::sin(theta) / r_squared;
@@ -145,7 +186,6 @@ void EKFslam::update(double measurement[2]) {
     matrixOps.matrixSubtract(I, KH, temp3);
     matrixOps.matrixMultiply(temp3, covariance_matrix, covariance_matrix);
     state[2] = std::fmod(state[2] + M_PI, 2*M_PI) - M_PI;
-    
     // delete [] KH.getMatrix();
     // delete [] I.getMatrix();
     // delete [] temp.getMatrix();
