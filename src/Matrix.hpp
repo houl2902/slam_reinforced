@@ -9,5 +9,8 @@ class Matrix
       double* getMatrix();
       int* getSize();
       double& operator()(int i, int j);
-      //~Matrix();
+      ~Matrix();
+      void resize(int newRows, int newCols);
+      Matrix(const Matrix& other);
+      Matrix& operator=(const Matrix& other);
 };

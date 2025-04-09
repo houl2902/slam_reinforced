@@ -12,6 +12,7 @@ EKFslam::EKFslam() : motion_noise(3, 3), covariance_matrix(3, 3), measurement_no
     was_states[0] = 100;
     was_states[1] = 100;
     was_states[2] = 0.0001;
+    num_landmarks = 0;
     // Инициализация ковариационной матрицы
     for (int i = 0; i < STATE_SIZE; ++i) {
         for (int j = 0; j < STATE_SIZE; ++j) {
@@ -44,65 +45,80 @@ void EKFslam::makeNoisyControl(double control[2]) {
     motion_noise(2,2) = pow(ang_vel_noise_std, 2); // σ²_w
 }
 
-void EKFslam::predict(double control[2]) {
-    // Модель движения робота
-    double dt = 1; // Временной шаг
-    double v = control[0]; // Линейная скорость
-    double w = control[1]; // Угловая скорость
-    std::cout << "HERE00" << std::endl;
-    std::cout << control[0] << std::endl;
-    std::cout << control[1] << std::endl;
-    makeNoisyControl(control);
-    std::cout << "HERE11" << std::endl;
-    std::cout << control[0] << std::endl;
-    std::cout << control[1] << std::endl;
+void EKFslam::addLandmark(double x, double y) {
+    if (num_landmarks >= MAX_LANDMARKS) {
+        throw std::runtime_error("Maximum number of landmarks reached");
+    }
+    num_landmarks++;
+    // Добавляем landmark в состояние
+    int idx = 3 + 2*num_landmarks-2;
+    state[idx] = x;
+    state[idx+1] = y;
+    std::cout << "RESIZE" << std::endl;
+    std::cout << idx << std::endl;
+    std::cout << 3 + 2*num_landmarks << std::endl;
 
-
-    // Обновление состояния
-    std::cout << "__________________" << std::endl;
-    std::cout << std::sin(state[2]) << std::endl;
-    std::cout << "__________________" << std::endl;
-    state[0] += v * std::cos(state[2]) * dt; // x
-    state[1] += v * std::sin(state[2]) * dt; // y
-    state[2] += w * dt; // theta
-    std::cout << "HERE22" << std::endl;
-    std::cout << state[0] << std::endl;
-    std::cout << state[1] << std::endl;
-    std::cout << state[2] << std::endl;
+    covariance_matrix.resize(3 + 2*num_landmarks,3 + 2*num_landmarks);
     
-    //std::cout <<  << std::endl;
-    std::cout << "++++++++++++++++++++" << std::endl;
-    Matrix F(3,3);
-    // Матрица Якоби для модели движения (F)
-    F(0,0) = 1;
+    // Инициализируем ковариацию для нового landmark
+    covariance_matrix(idx,idx) = 1.0;
+    covariance_matrix(idx+1,idx+1) = 1.0;
+    covariance_matrix(idx, idx + 1) = 0.0;
+    covariance_matrix(idx + 1, idx) = 0.0;
+    for (int i = 0; i < idx; ++i) {
+        covariance_matrix(i, idx) = 0.0;
+        covariance_matrix(idx, i) = 0.0;
+        covariance_matrix(i, idx + 1) = 0.0;
+        covariance_matrix(idx + 1, i) = 0.0;
+    }
+    
+    
+}
+
+void EKFslam::predict(double control[2]) {
+    // Модель движения робота (только для робота, landmarks не двигаются)
+    double dt = 1;
+    double v = control[0];
+    double w = control[1];
+    
+    makeNoisyControl(control);
+    
+    // Обновление состояния робота
+    state[0] += v * std::cos(state[2]) * dt;
+    state[1] += v * std::sin(state[2]) * dt;
+    state[2] += w * dt;
+    
+    // Матрица Якоби F (только для робота)
+    Matrix F(3 + 2*num_landmarks, 3 + 2*num_landmarks);
+    for (int i = 0; i < F.getSize()[0]; ++i) {
+        F(i,i) = 1.0; // Единичная матрица по умолчанию
+    }
     F(0,2) = -v * std::sin(state[2]) * dt;
-    F(1,1) = 1;
     F(1,2) = v * std::cos(state[2]) * dt;
-    F(2,2) = 1;
-    std::cout << "HERE444" << std::endl;
-    matrixOps.matrixShow(F);
     
     // Обновление ковариации
-    Matrix FT(3,3);
+    Matrix FT(F.getSize()[1], F.getSize()[0]);
     matrixOps.matrixTranspose(F, FT);
-    std::cout << "HERE441" << std::endl;
-    matrixOps.matrixShow(FT);
-    Matrix temp(3,3);
+    
+    Matrix temp(F.getSize()[0], FT.getSize()[1]);
     matrixOps.matrixMultiply(F, covariance_matrix, temp);
-    std::cout << "HERE43" << std::endl;
-    matrixOps.matrixShow(temp);
-    matrixOps.matrixShow(FT);
     matrixOps.matrixMultiply(temp, FT, covariance_matrix);
-    matrixOps.matrixShow(covariance_matrix);
-    std::cout << "HERE42" << std::endl;
-    matrixOps.matrixShow(covariance_matrix);
-    matrixOps.matrixAdd(covariance_matrix, motion_noise, covariance_matrix);
-    std::cout << "HERE44" << std::endl;
-    matrixOps.matrixShow(covariance_matrix);
-    matrixOps.matrixShow(F);
-    // delete[] temp.getMatrix(); 
-    // delete[] F.getMatrix(); 
-    // delete[] FT.getMatrix(); 
+    for (int i = 0; i < 3; ++i) {
+        covariance_matrix(i, i) += motion_noise(i, i);
+    }
+    // 7. Отладочный вывод (можно закомментировать)
+
+    std::cout << "После predict:" << std::endl;
+    std::cout << "Состояние робота: [" 
+              << state[0] << ", " << state[1] << ", " << state[2] << "]" << std::endl;
+    std::cout << "Первые 3x3 ковариации:\n";
+    for (int i = 0; i < 3; ++i) {
+        for (int j = 0; j < 3; ++j) {
+            std::cout << covariance_matrix(i,j) << " ";
+        }
+        std::cout << std::endl;
+    }
+    
 }
 
 void EKFslam::update(double measurement[2]) {
@@ -122,11 +138,9 @@ void EKFslam::update(double measurement[2]) {
     std::cout << "r_squared: " << r_squared << std::endl;
     std::cout << "theta: " << theta << std::endl;
     
-    H(0,0) = -std::cos(theta);
-    H(0,1) = -std::sin(theta);
-    H(1,0) = std::sin(theta) / r_squared;
-    H(1,1) = -std::cos(theta) / r_squared;
-    H(1,2) = -1;
+    H(0, 0) = 1.0; H(0, 1) = 0.0; H(0, 2) = 0.0;  // ∂x_measure/∂x
+    H(1, 0) = 0.0; H(1, 1) = 1.0; H(1, 2) = 0.0;  // ∂y_measure/∂y
+
     //std::cout << r_squared << std::endl;
     double z_pred[2];
     // Предсказанное измерение
@@ -157,7 +171,7 @@ void EKFslam::update(double measurement[2]) {
     S_inv(0,1) = -S(0,1) / det;
     S_inv(1,0) = -S(1,0) / det;
     S_inv(1,1) = S(0,0) / det;
-    std::cout << "HERE" << std::endl;
+    
     Matrix K(3,2);
     Matrix temp2(3,2);
     // matrixOps.matrixShow(covariance_matrix);
@@ -173,19 +187,27 @@ void EKFslam::update(double measurement[2]) {
 
     // Коррекция состояния
     double dz[2] = {measurement[0] - z_pred[0], measurement[1] - z_pred[1]};
-    for (int i = 0; i < STATE_SIZE; ++i) {
-        state[i] += K(i,0) * dz[0] + K(i,1) * dz[1];
-    }
-    
+    // 8. Коррекция состояния (только x и y)
+    state[0] += K(0,0)*dz[0] + K(0,1)*dz[1];
+    state[1] += K(1,0)*dz[0] + K(1,1)*dz[1];
+    // Угол не обновляется (так как нет информации об угле)
 
-    // Коррекция ковариации
-    Matrix I(3,3);
-    Matrix KH(3,3);
-    Matrix temp3(3,3);
+    // 9. Обновление ковариации (упрощенная форма)
+    Matrix I(3, 3);
+    for (int i = 0; i < 3; ++i) I(i,i) = 1.0;
+    
+    Matrix KH(3, 3);
     matrixOps.matrixMultiply(K, H, KH);
-    matrixOps.matrixSubtract(I, KH, temp3);
-    matrixOps.matrixMultiply(temp3, covariance_matrix, covariance_matrix);
-    state[2] = std::fmod(state[2] + M_PI, 2*M_PI) - M_PI;
+    
+    Matrix I_KH(3, 3);
+    matrixOps.matrixSubtract(I, KH, I_KH);
+    
+    matrixOps.matrixMultiply(I_KH, covariance_matrix, covariance_matrix);
+    // matrixOps.matrixMultiply(K, measurement_noise, temp4);
+    // matrixOps.matrixTranspose(K, K.transpose(), KRK);
+    
+    // matrixOps.matrixAdd(P_temp2, KRK, covariance_matrix);
+    //state[2] = std::fmod(state[2] + M_PI, 2*M_PI) - M_PI;
     // delete [] KH.getMatrix();
     // delete [] I.getMatrix();
     // delete [] temp.getMatrix();
