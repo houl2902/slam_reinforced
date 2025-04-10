@@ -77,9 +77,7 @@ void EKFslam::addLandmark(double x, double y) {
 
 void EKFslam::predict(double control[2]) {
     // Модель движения робота (только для робота, landmarks не двигаются)
-    state[2] = std::fmod(state[2], 6.2831);
-    if (state[2] > 3.1415) state[2] -= 6.2831;
-    if (state[2] < -3.1415) state[2] += 6.2831;
+    state[2] = fmod(state[2] + M_PI, 2*M_PI) - M_PI;
     double dt = 1;
     double v = control[0];
     double w = control[1];
@@ -130,100 +128,120 @@ void EKFslam::predict(double control[2]) {
     
 }
 
-void EKFslam::update(double measurement[2]) {
+void EKFslam::update(double measurement[2],int landmark_id) {
     // Матрица Якоби для модели наблюдения (H)
 
 
-    const double theta = state[2];
-    const double x = state[0], y = state[1];
-    double r_squared = x*x + y*y;
-    
-    if (fabs(r_squared) < 1e-10) {
-    r_squared = (x*x + y*y < 0) ? -1e-10 : 1e-10;
+    // 1. Проверка корректности landmark_id
+    if (landmark_id < 0 || landmark_id >= num_landmarks) {
+        throw std::invalid_argument("Invalid landmark ID");
     }
-    Matrix H(2,3);
-    std::cout << "x: " << x << std::endl;
-    std::cout << "y: " << y << std::endl;
-    std::cout << "r_squared: " << r_squared << std::endl;
-    std::cout << "theta: " << theta << std::endl;
-    
-    H(0, 0) = 1.0; H(0, 1) = 0.0; H(0, 2) = 0.0;  // ∂x_measure/∂x
-    H(1, 0) = 0.0; H(1, 1) = 1.0; H(1, 2) = 0.0;  // ∂y_measure/∂y
 
-    //std::cout << r_squared << std::endl;
-    double z_pred[2];
-    // Предсказанное измерение
-    z_pred[0] = std::sqrt(r_squared);         // Предсказанное расстояние
-    z_pred[1] = std::atan2(y, x) - theta;     // Предсказанный угол
+    // 2. Получение текущего положения робота и landmark
+    const double rx = state[0];
+    const double ry = state[1];
+    const double rt = state[2];
+    const int lm_idx = 3 + 2 * landmark_id - 2;
+    const double lx = state[lm_idx];
+    const double ly = state[lm_idx + 1];
+
+    // 3. Вычисление разности координат
+    const double dx = lx - rx;
+    const double dy = ly - ry;
+    const double q = dx * dx + dy * dy;
+
+    // 4. Проверка на нулевое расстояние
+    if (q < 1e-10) {
+        std::cerr << "Warning: Robot is too close to landmark " << landmark_id << std::endl;
+        return;
+    }
+
+    // 5. Создание матрицы Якоби H
+    Matrix H(2, 3 + 2 * num_landmarks);
     
-    matrixOps.matrixShow(H);
-    // Матрица усиления Калмана (K)
-    Matrix HT(3,2);
+    // 5.1 Производные для робота
+    H(0, 0) = -dx / sqrt(q);  // ∂r/∂x_robot
+    H(0, 1) = -dy / sqrt(q);  // ∂r/∂y_robot
+    H(0, 2) = 0.0;            // ∂r/∂θ_robot
+    
+    H(1, 0) = dy / q;         // ∂φ/∂x_robot
+    H(1, 1) = -dx / q;        // ∂φ/∂y_robot
+    H(1, 2) = -1.0;           // ∂φ/∂θ_robot
+
+    // 5.2 Производные для landmark
+    H(0, lm_idx) = dx / sqrt(q);     // ∂r/∂x_landmark
+    H(0, lm_idx + 1) = dy / sqrt(q); // ∂r/∂y_landmark
+    
+    H(1, lm_idx) = -dy / q;          // ∂φ/∂x_landmark
+    H(1, lm_idx + 1) = dx / q;       // ∂φ/∂y_landmark
+
+    // 6. Предсказанное измерение
+    double z_pred[2];
+    z_pred[0] = sqrt(q);               // Расстояние
+    z_pred[1] = atan2(dy, dx) - rt;    // Угол
+    z_pred[1] = fmod(z_pred[1] + M_PI, 2*M_PI) - M_PI; // Нормализация угла
+
+    // 7. Разность измерений
+    double dz[2] = {
+        measurement[0] - z_pred[0],
+        fmod(measurement[1] - z_pred[1] + M_PI, 2*M_PI) - M_PI
+    };
+
+    // 8. Вычисление матрицы усиления Калмана
+    Matrix HT(3 + 2 * num_landmarks, 2);
     matrixOps.matrixTranspose(H, HT);
 
-    Matrix S(2,2);
-    Matrix temp(2,3);
+    Matrix S(2, 2);
+    Matrix temp(2, 3 + 2 * num_landmarks);
     matrixOps.matrixMultiply(H, covariance_matrix, temp);
     matrixOps.matrixMultiply(temp, HT, S);
     matrixOps.matrixAdd(S, measurement_noise, S);
 
-    Matrix S_inv(2,2);
-    // Вычисление обратной матрицы S (для простоты используем явную формулу для 2x2)
-    double det = S(0,0) * S(1,1) - S(0,1) * S(1,0);
-    
-    //std::cout << measurements[1] << std::endl;
-    if (std::abs(det) < 1e-10) {
-        std::cerr << "Матрица S вырождена!" << "(det = " << det << ")"  << std::endl;
+    // 9. Проверка вырожденности S
+    double det = S(0, 0) * S(1, 1) - S(0, 1) * S(1, 0);
+    if (fabs(det) < 1e-10) {
+        std::cerr << "Warning: Matrix S is degenerate (det = " << det << ")" << std::endl;
         return;
     }
-    S_inv(0,0) = S(1,1) / det;
-    S_inv(0,1) = -S(0,1) / det;
-    S_inv(1,0) = -S(1,0) / det;
-    S_inv(1,1) = S(0,0) / det;
-    
-    Matrix K(3,2);
-    Matrix temp2(3,2);
-    // matrixOps.matrixShow(covariance_matrix);
-    // matrixOps.matrixShow(HT);
+
+    // 10. Обратная матрица S
+    Matrix S_inv(2, 2);
+    S_inv(0, 0) = S(1, 1) / det;
+    S_inv(0, 1) = -S(0, 1) / det;
+    S_inv(1, 0) = -S(1, 0) / det;
+    S_inv(1, 1) = S(0, 0) / det;
+
+    // 11. Коэффициент усиления Калмана
+    Matrix K(3 + 2 * num_landmarks, 2);
+    Matrix temp2(3 + 2 * num_landmarks, 2);
     matrixOps.matrixMultiply(covariance_matrix, HT, temp2);
-    // std::cout << "HERE3" << std::endl;
-    // matrixOps.matrixShow(temp2);
-    // matrixOps.matrixShow(HT);
-    // matrixOps.matrixShow(covariance_matrix);
-    // matrixOps.matrixShow(S_inv);
     matrixOps.matrixMultiply(temp2, S_inv, K);
-    // std::cout << "HERE2" << std::endl;
 
-    // Коррекция состояния
-    double dz[2] = {measurement[0] - z_pred[0], measurement[1] - z_pred[1]};
-    // 8. Коррекция состояния (только x и y)
-    state[0] += K(0,0)*dz[0] + K(0,1)*dz[1];
-    state[1] += K(1,0)*dz[0] + K(1,1)*dz[1];
-    // Угол не обновляется (так как нет информации об угле)
-
-    // 9. Обновление ковариации (упрощенная форма)
-    Matrix I(3, 3);
-    for (int i = 0; i < 3; ++i) I(i,i) = 1.0;
+    // 12. Коррекция состояния
+    for (int i = 0; i < 3 + 2 * num_landmarks; ++i) {
+        state[i] += K(i, 0) * dz[0] + K(i, 1) * dz[1];
+    }
     
-    Matrix KH(3, 3);
+    // 13. Нормализация угла робота
+    state[2] = fmod(state[2] + M_PI, 2*M_PI) - M_PI;
+
+    // 14. Обновление ковариации (Joseph form)
+    Matrix I(3 + 2 * num_landmarks,3 + 2 * num_landmarks);
+    Matrix KH(3 + 2 * num_landmarks, 3 + 2 * num_landmarks);
     matrixOps.matrixMultiply(K, H, KH);
     
-    Matrix I_KH(3, 3);
+    Matrix I_KH(3 + 2 * num_landmarks, 3 + 2 * num_landmarks);
     matrixOps.matrixSubtract(I, KH, I_KH);
     
-    matrixOps.matrixMultiply(I_KH, covariance_matrix, covariance_matrix);
-    // matrixOps.matrixMultiply(K, measurement_noise, temp4);
-    // matrixOps.matrixTranspose(K, K.transpose(), KRK);
+    Matrix P_temp(3 + 2 * num_landmarks, 3 + 2 * num_landmarks);
+    matrixOps.matrixMultiply(I_KH, covariance_matrix, P_temp);
     
-    // matrixOps.matrixAdd(P_temp2, KRK, covariance_matrix);
-    //state[2] = std::fmod(state[2] + M_PI, 2*M_PI) - M_PI;
-    // delete [] KH.getMatrix();
-    // delete [] I.getMatrix();
-    // delete [] temp.getMatrix();
-    // delete [] temp2.getMatrix();
-    // delete [] temp3.getMatrix();
-    // delete [] K.getMatrix();
-    // delete [] S_inv.getMatrix();
-    // delete [] S.getMatrix();
-    // delete [] H.getMatrix();
+    Matrix KRK(3 + 2 * num_landmarks, 3 + 2 * num_landmarks);
+    Matrix temp3(3 + 2 * num_landmarks, 2);
+    matrixOps.matrixMultiply(K, measurement_noise, temp3);
+    Matrix KT(2, 3 + 2 * num_landmarks);
+    matrixOps.matrixTranspose(K, KT);
+    matrixOps.matrixMultiply(temp3, KT, KRK);
+    
+    matrixOps.matrixAdd(P_temp, KRK, covariance_matrix);
 }

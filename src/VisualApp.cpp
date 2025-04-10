@@ -172,8 +172,8 @@ void VisualApp::OnLoop(EKFslam* slam_obj){
 
     pointX = static_cast<int>(virtual_pos_X);
     pointY = static_cast<int>(virtual_pos_Y);
-    // Ограничение перемещения
     
+    // Ограничение перемещения
     // pointX = std::max(0, std::min(WINDOW_HEIGHT - POINT_SIZE, pointX));
     // pointX = std::max(0, std::min(WINDOW_WIDTH - POINT_SIZE, pointY));
 
@@ -186,6 +186,22 @@ void VisualApp::OnLoop(EKFslam* slam_obj){
     } else {
         trail.push_back({pointX + POINT_SIZE/2, pointY + POINT_SIZE/2});
     };
+
+    int slam_pointX = static_cast<int>(slam_virtual_pos_X);
+    int slam_pointY = static_cast<int>(slam_virtual_pos_Y);
+    if (!slam_trail.empty()) {
+        std::cout << "|||||||||||||||||||" << std::endl;
+        std::cout << slam_pointX << std::endl;
+        std::cout << slam_pointX << std::endl;
+        std::cout << "|||||||||||||||||||" << std::endl;
+        auto& last = slam_trail.back();
+        if (last.first != slam_pointX || last.second != slam_pointY) {
+            slam_trail.push_back({slam_pointX + POINT_SIZE/2, slam_pointY + POINT_SIZE/2});
+        }
+    } else {
+        slam_trail.push_back({slam_pointX + POINT_SIZE/2, slam_pointY + POINT_SIZE/2});
+    };
+
 
  
     
@@ -229,6 +245,12 @@ void VisualApp::OnRender() {
     // 2. Рисуем повернутые границы
     //SDL_RenderDrawRectEx(renderer, &rect, rotation, &center);
     SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255);
+    for (size_t i = 1; i < slam_trail.size(); i++) {
+        SDL_RenderDrawLine(renderer,
+            slam_trail[i-1].first, slam_trail[i-1].second,
+            slam_trail[i].first, slam_trail[i].second);
+    }
+
 
     int slam_pointX = static_cast<int>(slam_virtual_pos_X);
     int slam_pointY = static_cast<int>(slam_virtual_pos_Y);
@@ -241,9 +263,9 @@ void VisualApp::OnRender() {
     points2[4] = {slam_pointX, slam_pointY}; // Замыкаем контур
 
     SDL_Point center2 = {slam_pointX + POINT_SIZE/2, slam_pointY + POINT_SIZE/2};
-
+    
     for(int i = 0; i < 5; i++) {
-        points[i] = VisualApp::rotate_point(points2[i], center2, rotation);
+        points2[i] = VisualApp::rotate_point(points2[i], center2, rotation);
     };
     SDL_RenderDrawLines(renderer,points2,5);
     // Обновление экрана

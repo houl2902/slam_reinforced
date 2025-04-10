@@ -23,7 +23,7 @@ class EKFslam {
     double was_states[STATE_SIZE];
     void makeNoisyControl(double control[2]);
     void predict(double control[2]); 
-    void update(double measurement[2]);
+    void update(double measurement[2],int landmark_id);
     void printState();
     double noisy_control[2];
 };
