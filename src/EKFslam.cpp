@@ -77,17 +77,25 @@ void EKFslam::addLandmark(double x, double y) {
 
 void EKFslam::predict(double control[2]) {
     // Модель движения робота (только для робота, landmarks не двигаются)
+    state[2] = std::fmod(state[2], 6.2831);
+    if (state[2] > 3.1415) state[2] -= 6.2831;
+    if (state[2] < -3.1415) state[2] += 6.2831;
     double dt = 1;
     double v = control[0];
     double w = control[1];
-    
+
     makeNoisyControl(control);
     
     // Обновление состояния робота
     state[0] += v * std::cos(state[2]) * dt;
     state[1] += v * std::sin(state[2]) * dt;
     state[2] += w * dt;
-    
+    std::cout << "STATE "<<std::endl;
+    std::cout << v << std::endl;
+    std::cout << w << std::endl;
+    std::cout << v * std::cos(state[2])  << std::endl;
+    std::cout << v * std::sin(state[2]) << std::endl;
+    std::cout << state[2] << std::endl;
     // Матрица Якоби F (только для робота)
     Matrix F(3 + 2*num_landmarks, 3 + 2*num_landmarks);
     for (int i = 0; i < F.getSize()[0]; ++i) {
@@ -118,6 +126,7 @@ void EKFslam::predict(double control[2]) {
         }
         std::cout << std::endl;
     }
+    matrixOps.matrixShow(covariance_matrix);
     
 }
 

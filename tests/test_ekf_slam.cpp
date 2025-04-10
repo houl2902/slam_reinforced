@@ -26,12 +26,12 @@ TEST_F(EKFslamTest, PredictStraightMotion) {
     ekf->predict(control);
 
     // Ожидаемые значения после dt = 1 сек
-    EXPECT_NEAR(ekf->state[0], 100.0 + std::cos(0.0001), 1e-5);
-    EXPECT_NEAR(ekf->state[1], 100.0 + std::sin(0.0001), 1e-5);
-    EXPECT_NEAR(ekf->state[2], 0.0001, 1e-5);
     std::cout << GTEST_BOX << ekf->state[0] << std::endl;
     std::cout << GTEST_BOX << ekf->state[1] << std::endl;
     std::cout << GTEST_BOX << ekf->state[2] << std::endl;
+    EXPECT_NEAR(ekf->state[0], 100.0 + std::cos(0.0001), 1e-5);
+    EXPECT_NEAR(ekf->state[1], 100.0 + std::sin(0.0001), 1e-5);
+    EXPECT_NEAR(ekf->state[2], 0.0001, 1e-5);
 }
 
 // Тест предсказания (поворот)

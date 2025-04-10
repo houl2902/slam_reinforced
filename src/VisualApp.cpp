@@ -104,7 +104,7 @@ void VisualApp::OnLoop(EKFslam* slam_obj){
     if (keys[SDL_SCANCODE_W]) {
         virtual_pos_X-=x_move_offset;
         virtual_pos_Y-=y_move_offset;
-        control[0] = MOVE_SPEED;
+        control[0] = -MOVE_SPEED;
     }; // Движение вверх
     if (keys[SDL_SCANCODE_S]) {
         virtual_pos_X+=x_move_offset;
@@ -113,11 +113,11 @@ void VisualApp::OnLoop(EKFslam* slam_obj){
     };  // Движение вниз
     if (keys[SDL_SCANCODE_A]){
         rotation += rotationSpeed;
-        control[1] = rotationSpeed;
+        control[1] = rotationSpeed*M_PI / 180.0;
     } 
     if (keys[SDL_SCANCODE_D]){
         rotation -= rotationSpeed;
-        control[1] = rotationSpeed;
+        control[1] = -rotationSpeed*M_PI / 180.0;
     } 
     // std::cout << virtual_pos_X << std::endl;
     // std::cout << virtual_pos_Y << std::endl;
