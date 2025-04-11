@@ -1,8 +1,19 @@
 #include <gtest/gtest.h>
 #include "/home/houl/slam_reinforced/src/EKFslam.hpp"
+//#include "/home/houl/slam_reinforced/src/MatrixFunctions.hpp"
 #include <cmath>
 
 #define GTEST_BOX "[     cout ] "
+class MatrixOperationsTest : public ::testing::Test {
+    protected:
+        void SetUp() override {
+            // Инициализация фильтра перед каждым тестом
+            ops = std::make_unique<MatrixOperations>();
+        }
+    
+        std::unique_ptr<MatrixOperations> ops;
+    };
+
 class EKFslamTest : public ::testing::Test {
 protected:
     void SetUp() override {
@@ -13,6 +24,44 @@ protected:
     std::unique_ptr<EKFslam> ekf;
 };
 
+    
+TEST_F(MatrixOperationsTest, MultiplyValid) {
+    Matrix A(2, 3), B(3, 2), result(2, 2);
+    
+    // Заполняем матрицы тестовыми данными
+    A(0,0)=1; A(0,1)=2; A(0,2)=3;
+    A(1,0)=4; A(1,1)=5; A(1,2)=6;
+    
+    B(0,0)=7; B(0,1)=8;
+    B(1,0)=9; B(1,1)=10;
+    B(2,0)=11; B(2,1)=12;
+        
+    ops->matrixMultiply(A, B, result);
+        
+        // Проверяем результат
+    EXPECT_NEAR(result(0,0), 58, 1e-9);  // 1*7 + 2*9 + 3*11
+    EXPECT_NEAR(result(0,1), 64, 1e-9);
+    EXPECT_NEAR(result(1,0), 139, 1e-9);
+    EXPECT_NEAR(result(1,1), 154, 1e-9);
+}
+    
+TEST_F(MatrixOperationsTest, MultiplyInvalidDimensions) {
+        Matrix A(2, 2), B(3, 2), result(2, 2);
+        EXPECT_THROW(ops->matrixMultiply(A, B, result), std::invalid_argument);
+}
+    
+TEST_F(MatrixOperationsTest, MultiplyWithNaN) {
+        Matrix A(1, 1), B(1, 1), result(1, 1);
+        A(0,0) = NAN;
+        B(0,0) = 2.0;
+        
+        testing::internal::CaptureStderr();
+        ops->matrixMultiply(A, B, result);
+        std::string output = testing::internal::GetCapturedStderr();
+        
+        EXPECT_TRUE(output.find("Warning") != std::string::npos);
+        EXPECT_EQ(result(0,0), 1e-10);
+}
 // Тест инициализации состояния
 TEST_F(EKFslamTest, InitialState) {
     EXPECT_NEAR(ekf->state[0], 100.0, 1e-5);  // Проверка начального X
@@ -108,104 +157,26 @@ TEST_F(EKFslamTest, CovarianceAfterPredictWithLandMark) {
     EXPECT_GT(ekf->covariance_matrix(0, 0), initial_cov);
 }
 
-// TEST_F(EKFslamTest, UpdateWithPerfectMeasurement) {
-//     // Исходное состояние: робот в (100, 100), theta = 0
-//     ekf->state[0] = 100.0;
-//     ekf->state[1] = 100.0;
-//     ekf->state[2] = 0.0;
-
-//     // Измерение: расстояние = 10, угол = 0 (робот "видит" landmark в (110, 100))
-//     double measurement[2] = {10.0, 0.0};
-//     ekf->update(measurement);
-
-//     // Ожидаемое состояние после коррекции (должно приблизиться к (110, 100))
-//     EXPECT_NEAR(ekf->state[0], 110.0, 0.1);
-//     EXPECT_NEAR(ekf->state[1], 100.0, 0.1);
-//     EXPECT_NEAR(ekf->state[2], 0.0, 0.01);
-// }
-
-// TEST_F(EKFslamTest, UpdateWithRobotPositionEstimate) {
-//     // Исходное состояние фильтра: робот предполагает, что находится в (100, 100)
-//     ekf->state[0] = 100.0;  // x
-//     ekf->state[1] = 100.0;  // y
-//     ekf->state[2] = 0.0;    // theta
+TEST_F(EKFslamTest, UpdateWithPerfectMeasurement) {
+    // Инициализируем робота в (100, 100) и добавляем landmark в (110, 100)
+    ekf->covariance_matrix(0,0) = 1.0; 
+    ekf->state[0] = 100.0;
+    ekf->state[1] = 100.0;
+    ekf->state[2] = 0.0;
+    ekf->addLandmark(110.0, 100.0); // landmark_id = 0
     
-//     // Настройка ковариации (высокая начальная неопределенность)
-//     ekf->covariance_matrix(0,0) = 10.0;  // Неопределенность по x
-//     ekf->covariance_matrix(1,1) = 10.0;  // Неопределенность по y
-//     ekf->covariance_matrix(2,2) = 1.0;   // Неопределенность по углу
-
-//     // Внешняя оценка положения робота (например, по GPS или другим датчикам)
-//     // Считаем, что робот на самом деле находится в (105, 98)
-//     double robot_position_estimate[2] = {105.0, 98.0};
+    // Имитируем идеальное измерение (расстояние 10, угол 0)
+    double measurement[2] = {10.0, 0.0};
+    ekf->update(measurement, 0);
     
-//     // Обновляем фильтр с этой оценкой
-//     ekf->update(robot_position_estimate);
-
-//     // Проверяем, что состояние скорректировалось в сторону оценки
-//     EXPECT_GT(ekf->state[0], 100.0) << "X should increase toward 105.0";
-//     EXPECT_LT(ekf->state[1], 100.0) << "Y should decrease toward 98.0";
-//     EXPECT_NEAR(ekf->state[2], 0.0, 0.01) << "Orientation shouldn't change";
-
-//     // Проверяем уменьшение неопределенности
-//     EXPECT_LT(ekf->covariance_matrix(0,0), 10.0) << "X uncertainty should decrease";
-//     EXPECT_LT(ekf->covariance_matrix(1,1), 10.0) << "Y uncertainty should decrease";
-
-//     // Проверяем величину коррекции (должны приблизиться к 105, 98)
-//     EXPECT_NEAR(ekf->state[0], 105.0, 2.0) << "X should be close to 105.0";
-//     EXPECT_NEAR(ekf->state[1], 98.0, 2.0) << "Y should be close to 98.0";
-// }
-
-// TEST_F(EKFslamTest, MultipleUpdates) {
-//     ekf->state[0] = 0.0;
-//     ekf->state[1] = 0.0;
-//     ekf->state[2] = 0.0;
-
-//     // Первое измерение: landmark в (5, 0)
-//     double measurement1[2] = {5.0, 0.0};
-//     ekf->update(measurement1);
-
-//     // Второе измерение: landmark в (0, 5)
-//     double measurement2[2] = {5.0, M_PI/2};
-//     ekf->update(measurement2);
-
-//     // Робот должен быть ближе к (0, 0)
-//     EXPECT_NEAR(ekf->state[0], 0.0, 1.0);
-//     EXPECT_NEAR(ekf->state[1], 0.0, 1.0);
-// }
-
-// TEST_F(EKFslamTest, CovarianceDecreasesAfterUpdate) {
-//     ekf->state[0] = 0.0;
-//     ekf->state[1] = 0.0;
-//     ekf->state[2] = 0.0;
-
-//     // Увеличиваем неопределённость
-//     ekf->covariance_matrix(0,0) = 10.0;
-//     ekf->covariance_matrix(1,1) = 10.0;
-
-//     double initial_cov = ekf->covariance_matrix(0,0);
-//     double measurement[2] = {5.0, 0.0};  // Точное измерение
-//     ekf->update(measurement);
-
-//     // Ковариация должна уменьшиться
-//     EXPECT_LT(ekf->covariance_matrix(0,0), initial_cov);
-// }
-
-// TEST_F(EKFslamTest, UpdateWithBearingAngle) {
-//     ekf->state[0] = 0.0;
-//     ekf->state[1] = 0.0;
-//     ekf->state[2] = M_PI/4;  // Робот повёрнут на 45 градусов
-
-//     // Измерение: расстояние = 10, угол = π/4 (ожидаемый landmark в (7.07, 7.07))
-//     double measurement[2] = {10.0, M_PI/4};
-//     ekf->update(measurement);
-
-//     // Проверка координат (с учётом поворота)
-//     std::cout << GTEST_BOX << (ekf->state[0]) << std::endl;
-//     EXPECT_NEAR(ekf->state[0], 7.07, 0.1);
-//     EXPECT_NEAR(ekf->state[1], 7.07, 0.1);
-//     EXPECT_NEAR(ekf->state[2], M_PI/4, 0.01);
-// }
+    // Проверяем что состояние робота не изменилось (идеальное измерение)
+    EXPECT_NEAR(ekf->state[0], 100.0, 1e-5);
+    EXPECT_NEAR(ekf->state[1], 100.0, 1e-5);
+    EXPECT_NEAR(ekf->state[2], 0.0, 1e-5);
+    
+    // Проверяем что ковариация уменьшилась
+    EXPECT_LT(ekf->covariance_matrix(0,0), 1); // Изначально было 0.1
+}
 
 int main(int argc, char **argv) {
     ::testing::InitGoogleTest(&argc, argv);

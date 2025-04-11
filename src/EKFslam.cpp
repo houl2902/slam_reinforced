@@ -9,14 +9,11 @@ EKFslam::EKFslam() : motion_noise(3, 3), covariance_matrix(3, 3), measurement_no
     vel_noise_std = 0.1;    // Стандартное отклонение для линейной скорости
     ang_vel_noise_std = 0.05; 
     noisy_control[2];
-    was_states[0] = 100;
-    was_states[1] = 100;
-    was_states[2] = 0.0001;
     num_landmarks = 0;
     // Инициализация ковариационной матрицы
     for (int i = 0; i < STATE_SIZE; ++i) {
         for (int j = 0; j < STATE_SIZE; ++j) {
-            covariance_matrix(i,j) = (i == j) ? 0.1 : 0.0; // Диагональная матрица
+            covariance_matrix(i,j) = (i == j) ? 0.01 : 0.0; // Диагональная матрица
         }
     }
 
@@ -104,8 +101,13 @@ void EKFslam::predict(double control[2]) {
     
     // Обновление ковариации
     Matrix FT(F.getSize()[1], F.getSize()[0]);
+    std::cout << "ABOBA3" << std::endl;
+
+    matrixOps.matrixShow(F);
     matrixOps.matrixTranspose(F, FT);
-    
+    std::cout << "ABOBA2" << std::endl;
+
+    matrixOps.matrixShow(FT);
     Matrix temp(F.getSize()[0], FT.getSize()[1]);
     matrixOps.matrixMultiply(F, covariance_matrix, temp);
     matrixOps.matrixMultiply(temp, FT, covariance_matrix);
@@ -141,7 +143,7 @@ void EKFslam::update(double measurement[2],int landmark_id) {
     const double rx = state[0];
     const double ry = state[1];
     const double rt = state[2];
-    const int lm_idx = 3 + 2 * landmark_id - 2;
+    const int lm_idx = 3 + 2 * landmark_id;
     const double lx = state[lm_idx];
     const double ly = state[lm_idx + 1];
 
@@ -150,6 +152,13 @@ void EKFslam::update(double measurement[2],int landmark_id) {
     const double dy = ly - ry;
     const double q = dx * dx + dy * dy;
 
+    std::cout << "ABOBA1" << std::endl;
+    std::cout << lx << std::endl;
+    std::cout << ly << std::endl;
+    std::cout << rx << std::endl;
+    std::cout << ry << std::endl;
+    std::cout << dx << std::endl;
+    std::cout << dy << std::endl;
     // 4. Проверка на нулевое расстояние
     if (q < 1e-10) {
         std::cerr << "Warning: Robot is too close to landmark " << landmark_id << std::endl;
@@ -175,6 +184,7 @@ void EKFslam::update(double measurement[2],int landmark_id) {
     H(1, lm_idx) = -dy / q;          // ∂φ/∂x_landmark
     H(1, lm_idx + 1) = dx / q;       // ∂φ/∂y_landmark
 
+    matrixOps.matrixShow(H);
     // 6. Предсказанное измерение
     double z_pred[2];
     z_pred[0] = sqrt(q);               // Расстояние
@@ -190,26 +200,48 @@ void EKFslam::update(double measurement[2],int landmark_id) {
     // 8. Вычисление матрицы усиления Калмана
     Matrix HT(3 + 2 * num_landmarks, 2);
     matrixOps.matrixTranspose(H, HT);
-
+    std::cout << "MUST BE ZEROS" << std::endl;
     Matrix S(2, 2);
+    matrixOps.matrixShow(HT);
     Matrix temp(2, 3 + 2 * num_landmarks);
     matrixOps.matrixMultiply(H, covariance_matrix, temp);
+    std::cout << "ABOBA" << std::endl;
+    std::cout << z_pred[0] << std::endl;
+    std::cout << z_pred[1] << std::endl;
+    std::cout << measurement[0] << std::endl;
+    std::cout << measurement[1] << std::endl;
+    std::cout << dz[1] << std::endl;
+    std::cout << dz[0] << std::endl;
+    std::cout << state[3]  << std::endl;
+    std::cout << state[4]  << std::endl;
+    matrixOps.matrixShow(temp);
     matrixOps.matrixMultiply(temp, HT, S);
-    matrixOps.matrixAdd(S, measurement_noise, S);
+    Matrix S2(2, 2);
+    std::cout << "BEFORE NOISE" << std::endl;
+    matrixOps.matrixShow(S);
+    matrixOps.matrixShow(S2);
+    matrixOps.matrixAdd(S, measurement_noise, S2);
+    std::cout << "AFTER NOISE" << std::endl;
+    matrixOps.matrixShow(S2);
 
+
+    std::cout << "HERE28" << std::endl;
+    matrixOps.matrixShow(measurement_noise);
     // 9. Проверка вырожденности S
-    double det = S(0, 0) * S(1, 1) - S(0, 1) * S(1, 0);
+    double det = S2(0, 0) * S2(1, 1) - S2(0, 1) * S2(1, 0);
     if (fabs(det) < 1e-10) {
-        std::cerr << "Warning: Matrix S is degenerate (det = " << det << ")" << std::endl;
-        return;
+        std::cerr << "Error: S matrix is singular! Adding regularization." << std::endl;
+        S2(0, 0) += 1e-5; // Регуляризация
+        S2(1, 1) += 1e-5;
+        det = S2(0, 0) * S2(1, 1) - S2(0, 1) * S2(1, 0);
     }
 
     // 10. Обратная матрица S
     Matrix S_inv(2, 2);
-    S_inv(0, 0) = S(1, 1) / det;
-    S_inv(0, 1) = -S(0, 1) / det;
-    S_inv(1, 0) = -S(1, 0) / det;
-    S_inv(1, 1) = S(0, 0) / det;
+    S_inv(0, 0) = S2(1, 1) / det;
+    S_inv(0, 1) = -S2(0, 1) / det;
+    S_inv(1, 0) = -S2(1, 0) / det;
+    S_inv(1, 1) = S2(0, 0) / det;
 
     // 11. Коэффициент усиления Калмана
     Matrix K(3 + 2 * num_landmarks, 2);

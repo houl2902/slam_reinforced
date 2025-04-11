@@ -22,6 +22,7 @@ VisualApp::VisualApp() {
     rotationSpeed = 0.5;
     trail;
     slam_trail;
+    landmarks;
 }
 
 
@@ -72,6 +73,8 @@ int VisualApp::OnExecute(EKFslam* slam_obj) {
     pointX = WINDOW_WIDTH / 2 - POINT_SIZE / 2;
     pointY = WINDOW_HEIGHT / 2 - POINT_SIZE / 2;
     int count = 0;
+    landmarks.push_back({300,300});
+    slam_obj->addLandmark(300.0,300.0);
     while(running) {
         while(SDL_PollEvent(&Event)) {
             VisualApp::OnEvent(&Event);
@@ -127,36 +130,38 @@ void VisualApp::OnLoop(EKFslam* slam_obj){
     // std::cout << pointX << std::endl;
     // std::cout << pointY << std::endl;
     // std::cout << slam_obj << std::endl;
-    std::cout << "START MEASURMENT" << std::endl;
-    std::cout << "!!!!!!!!!!!!!!!!!!!" << std::endl;
-    std::cout << control[0] << std::endl;
-    std::cout << control[1] << std::endl;
-    std::cout << "!!!!!!!!!!!!!!!!!!!" << std::endl;
+    // std::cout << "START MEASURMENT" << std::endl;
+    // std::cout << "!!!!!!!!!!!!!!!!!!!" << std::endl;
+    // std::cout << control[0] << std::endl;
+    // std::cout << control[1] << std::endl;
+    // std::cout << "!!!!!!!!!!!!!!!!!!!" << std::endl;
     rotation = std::fmod(rotation, 360.0);
     if (rotation > 180.0) rotation -= 360.0;
     if (rotation < -180.0) rotation += 360.0;
-    double distance = std::hypot(virtual_pos_X, virtual_pos_Y);
+    //double distance = std::hypot(virtual_pos_X, virtual_pos_Y);
+
+    double distance = sqrt((300-virtual_pos_X) * (300-virtual_pos_X) + (300-virtual_pos_Y) * (300-virtual_pos_Y));
     if (distance < 1e-10) distance = 1e-10;
-    
+    double angle = atan2(300-virtual_pos_X, 300-virtual_pos_Y) - rotation*M_PI / 180.0;
     //double angle = std::atan2(virtual_pos_Y, virtual_pos_X)
 
     slam_obj->predict(control);
-    double measurements[2] = {distance,rotation*M_PI / 180.0};
+
+    double measurements[2] = {distance,angle};
     std::cout << "=================" << std::endl;
     std::cout << measurements[0] << std::endl;
     std::cout << measurements[1] << std::endl;
     std::cout << "=================" << std::endl;
-    // if (!std::isnan(measurements[0]) && !std::isnan(measurements[1])){
-    //     slam_obj->update(measurements);
-    // }
+    if (!std::isnan(measurements[0]) && !std::isnan(measurements[1])){
+        slam_obj->update(measurements,0);
+    }
     
-
+    std::cout << "!!!!!!!!!!!!!!!!!!!!!!!!!!!" << std::endl;
     slam_virtual_pos_X = slam_obj->state[0];
     slam_virtual_pos_Y = slam_obj->state[1];
     slam_rotation = slam_obj->state[2];
     std::cout << virtual_pos_X << std::endl;
     std::cout << virtual_pos_Y << std::endl;
-    
     std::cout << rotation << std::endl;
     std::cout << x_move_offset << std::endl;
     std::cout << y_move_offset << std::endl;
@@ -164,6 +169,9 @@ void VisualApp::OnLoop(EKFslam* slam_obj){
     std::cout << pointY << std::endl;
     std::cout << slam_virtual_pos_X << std::endl;
     std::cout << slam_virtual_pos_Y << std::endl;
+    std::cout << slam_obj->state[3] << std::endl;
+    std::cout << slam_obj->state[4]<< std::endl;
+    std::cout << "!!!!!!!!!!!!!!!!!!!!!!!!!!!" << std::endl;
     // Ограничение перемещения точки в пределах окна
     if (rotation > 360) rotation -= 360;
     if (rotation < 0) rotation += 360;
@@ -190,10 +198,6 @@ void VisualApp::OnLoop(EKFslam* slam_obj){
     int slam_pointX = static_cast<int>(slam_virtual_pos_X);
     int slam_pointY = static_cast<int>(slam_virtual_pos_Y);
     if (!slam_trail.empty()) {
-        std::cout << "|||||||||||||||||||" << std::endl;
-        std::cout << slam_pointX << std::endl;
-        std::cout << slam_pointX << std::endl;
-        std::cout << "|||||||||||||||||||" << std::endl;
         auto& last = slam_trail.back();
         if (last.first != slam_pointX || last.second != slam_pointY) {
             slam_trail.push_back({slam_pointX + POINT_SIZE/2, slam_pointY + POINT_SIZE/2});
@@ -239,6 +243,14 @@ void VisualApp::OnRender() {
         points[i] = VisualApp::rotate_point(points[i], center, rotation);
     };
     SDL_RenderDrawLines(renderer,points,5);
+
+    SDL_Point points_l[5];
+    points_l[0] = {landmarks[0].first, landmarks[0].second};
+    points_l[1] = {landmarks[0].first + POINT_SIZE,landmarks[0].second};
+    points_l[2] = {landmarks[0].first  + POINT_SIZE, landmarks[0].second  + POINT_SIZE};
+    points_l[3] = {landmarks[0].first, landmarks[0].second + POINT_SIZE};
+    points_l[4] = {landmarks[0].first, landmarks[0].second}; // Замыкаем контур
+    SDL_RenderDrawLines(renderer,points_l,5);
     
     // 1. Рисуем заполненный прямоугольник
     

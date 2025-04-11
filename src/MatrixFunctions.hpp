@@ -8,9 +8,10 @@ class MatrixOperations {
    public:
    inline bool isProblematic(double val);
    inline double safeValue(double val);
-   void matrixMultiply(Matrix mat1, Matrix mat2, Matrix result);
-   void matrixTranspose( Matrix mat1, Matrix result);
-   void matrixAdd( Matrix A, Matrix B, Matrix result);
-   void matrixSubtract(Matrix A, Matrix B, Matrix result);
-   void matrixShow(Matrix mat);
+   void matrixMultiply(const Matrix& mat1, const Matrix& mat2, Matrix& result);
+   void matrixTranspose( const Matrix& mat1, Matrix& result);
+   void matrixAdd( const Matrix& A, const Matrix& B, Matrix& result);
+   void matrixSubtract(const Matrix& A, const Matrix& B, Matrix&  result);
+   void matrixShow(Matrix& mat);
+   void matrixShow(const Matrix& mat) const;
 };

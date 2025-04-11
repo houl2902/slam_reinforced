@@ -30,6 +30,7 @@ class VisualApp {
         float slam_rotation;
         std::vector<std::pair<int,int>> trail;
         std::vector<std::pair<int,int>> slam_trail;
+        std::vector<std::pair<int,int>> landmarks;
  
     public:
         VisualApp();
