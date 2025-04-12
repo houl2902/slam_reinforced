@@ -178,6 +178,27 @@ TEST_F(EKFslamTest, UpdateWithPerfectMeasurement) {
     EXPECT_LT(ekf->covariance_matrix(0,0), 1); // Изначально было 0.1
 }
 
+TEST_F(EKFslamTest, UpdateMultipleLandmarks) {
+    ekf->state[0] = 0.0;
+    ekf->state[1] = 0.0;
+    ekf->state[2] = 0.0;
+    ekf->addLandmark(10.0, 0.0);  // landmark 0
+    ekf->addLandmark(0.0, 10.0);  // landmark 1
+    
+    // Обновляем первый landmark
+    double meas1[2] = {10.1, 0.0};
+    ekf->update(meas1, 0);
+    
+    // Обновляем второй landmark
+    double meas2[2] = {9.9, M_PI/2};
+    ekf->update(meas2, 1);
+    
+    // Проверки
+    EXPECT_NEAR(ekf->state[3], 10.0, 0.2);  // landmark 0 x
+    EXPECT_NEAR(ekf->state[5], 0.0, 0.2);   // landmark 1 x
+    EXPECT_NEAR(ekf->state[6], 10.0, 0.2);  // landmark 1 y
+}
+
 int main(int argc, char **argv) {
     ::testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();

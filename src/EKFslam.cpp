@@ -72,19 +72,26 @@ void EKFslam::addLandmark(double x, double y) {
     
 }
 
+void EKFslam::normalizeAngle(double& ang){
+    double angle = fmod(ang + M_PI, 2*M_PI);
+    ang = (angle < 0) ? angle + 2 * M_PI - M_PI : angle - M_PI;
+}
+
 void EKFslam::predict(double control[2]) {
     // Модель движения робота (только для робота, landmarks не двигаются)
-    state[2] = fmod(state[2] + M_PI, 2*M_PI) - M_PI;
+    //state[2] = fmod(state[2] + M_PI, 2*M_PI) - M_PI;
     double dt = 1;
     double v = control[0];
     double w = control[1];
-
+    
     makeNoisyControl(control);
     
     // Обновление состояния робота
     state[0] += v * std::cos(state[2]) * dt;
     state[1] += v * std::sin(state[2]) * dt;
     state[2] += w * dt;
+    normalizeAngle(state[2]);
+
     std::cout << "STATE "<<std::endl;
     std::cout << v << std::endl;
     std::cout << w << std::endl;
@@ -101,32 +108,26 @@ void EKFslam::predict(double control[2]) {
     
     // Обновление ковариации
     Matrix FT(F.getSize()[1], F.getSize()[0]);
-    std::cout << "ABOBA3" << std::endl;
-
-    matrixOps.matrixShow(F);
+    
     matrixOps.matrixTranspose(F, FT);
-    std::cout << "ABOBA2" << std::endl;
-
-    matrixOps.matrixShow(FT);
+    
     Matrix temp(F.getSize()[0], FT.getSize()[1]);
     matrixOps.matrixMultiply(F, covariance_matrix, temp);
     matrixOps.matrixMultiply(temp, FT, covariance_matrix);
     for (int i = 0; i < 3; ++i) {
         covariance_matrix(i, i) += motion_noise(i, i);
     }
-    // 7. Отладочный вывод (можно закомментировать)
 
-    std::cout << "После predict:" << std::endl;
-    std::cout << "Состояние робота: [" 
-              << state[0] << ", " << state[1] << ", " << state[2] << "]" << std::endl;
-    std::cout << "Первые 3x3 ковариации:\n";
-    for (int i = 0; i < 3; ++i) {
-        for (int j = 0; j < 3; ++j) {
-            std::cout << covariance_matrix(i,j) << " ";
-        }
-        std::cout << std::endl;
-    }
-    matrixOps.matrixShow(covariance_matrix);
+    // std::cout << "После predict:" << std::endl;
+    // std::cout << "Состояние робота: [" 
+    //           << state[0] << ", " << state[1] << ", " << state[2] << "]" << std::endl;
+    // std::cout << "Первые 3x3 ковариации:\n";
+    // for (int i = 0; i < 3; ++i) {
+    //     for (int j = 0; j < 3; ++j) {
+    //         std::cout << covariance_matrix(i,j) << " ";
+    //     }
+    //     std::cout << std::endl;
+    // }
     
 }
 
@@ -152,13 +153,13 @@ void EKFslam::update(double measurement[2],int landmark_id) {
     const double dy = ly - ry;
     const double q = dx * dx + dy * dy;
 
-    std::cout << "ABOBA1" << std::endl;
-    std::cout << lx << std::endl;
-    std::cout << ly << std::endl;
-    std::cout << rx << std::endl;
-    std::cout << ry << std::endl;
-    std::cout << dx << std::endl;
-    std::cout << dy << std::endl;
+    // std::cout << "ABOBA1" << std::endl;
+    // std::cout << lx << std::endl;
+    // std::cout << ly << std::endl;
+    // std::cout << rx << std::endl;
+    // std::cout << ry << std::endl;
+    // std::cout << dx << std::endl;
+    // std::cout << dy << std::endl;
     // 4. Проверка на нулевое расстояние
     if (q < 1e-10) {
         std::cerr << "Warning: Robot is too close to landmark " << landmark_id << std::endl;
@@ -184,23 +185,23 @@ void EKFslam::update(double measurement[2],int landmark_id) {
     H(1, lm_idx) = -dy / q;          // ∂φ/∂x_landmark
     H(1, lm_idx + 1) = dx / q;       // ∂φ/∂y_landmark
 
-    matrixOps.matrixShow(H);
     // 6. Предсказанное измерение
     double z_pred[2];
     z_pred[0] = sqrt(q);               // Расстояние
     z_pred[1] = atan2(dy, dx) - rt;    // Угол
-    z_pred[1] = fmod(z_pred[1] + M_PI, 2*M_PI) - M_PI; // Нормализация угла
+    normalizeAngle(z_pred[1]);
 
+    double der_ang = measurement[1] - z_pred[1];
+    normalizeAngle(der_ang);
     // 7. Разность измерений
     double dz[2] = {
         measurement[0] - z_pred[0],
-        fmod(measurement[1] - z_pred[1] + M_PI, 2*M_PI) - M_PI
+        der_ang
     };
 
     // 8. Вычисление матрицы усиления Калмана
     Matrix HT(3 + 2 * num_landmarks, 2);
     matrixOps.matrixTranspose(H, HT);
-    std::cout << "MUST BE ZEROS" << std::endl;
     Matrix S(2, 2);
     matrixOps.matrixShow(HT);
     Matrix temp(2, 3 + 2 * num_landmarks);
@@ -214,19 +215,11 @@ void EKFslam::update(double measurement[2],int landmark_id) {
     std::cout << dz[0] << std::endl;
     std::cout << state[3]  << std::endl;
     std::cout << state[4]  << std::endl;
-    matrixOps.matrixShow(temp);
+    std::cout << "ABOBA2" << std::endl;
     matrixOps.matrixMultiply(temp, HT, S);
     Matrix S2(2, 2);
-    std::cout << "BEFORE NOISE" << std::endl;
-    matrixOps.matrixShow(S);
-    matrixOps.matrixShow(S2);
     matrixOps.matrixAdd(S, measurement_noise, S2);
-    std::cout << "AFTER NOISE" << std::endl;
-    matrixOps.matrixShow(S2);
 
-
-    std::cout << "HERE28" << std::endl;
-    matrixOps.matrixShow(measurement_noise);
     // 9. Проверка вырожденности S
     double det = S2(0, 0) * S2(1, 1) - S2(0, 1) * S2(1, 0);
     if (fabs(det) < 1e-10) {
@@ -255,7 +248,7 @@ void EKFslam::update(double measurement[2],int landmark_id) {
     }
     
     // 13. Нормализация угла робота
-    state[2] = fmod(state[2] + M_PI, 2*M_PI) - M_PI;
+    normalizeAngle(state[2]);
 
     // 14. Обновление ковариации (Joseph form)
     Matrix I(3 + 2 * num_landmarks,3 + 2 * num_landmarks);

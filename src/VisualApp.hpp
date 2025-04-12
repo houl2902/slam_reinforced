@@ -31,6 +31,7 @@ class VisualApp {
         std::vector<std::pair<int,int>> trail;
         std::vector<std::pair<int,int>> slam_trail;
         std::vector<std::pair<int,int>> landmarks;
+        int landmarks_slam[2];
  
     public:
         VisualApp();

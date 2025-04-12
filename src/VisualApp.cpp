@@ -23,6 +23,7 @@ VisualApp::VisualApp() {
     trail;
     slam_trail;
     landmarks;
+    landmarks_slam;
 }
 
 
@@ -142,7 +143,7 @@ void VisualApp::OnLoop(EKFslam* slam_obj){
 
     double distance = sqrt((300-virtual_pos_X) * (300-virtual_pos_X) + (300-virtual_pos_Y) * (300-virtual_pos_Y));
     if (distance < 1e-10) distance = 1e-10;
-    double angle = atan2(300-virtual_pos_X, 300-virtual_pos_Y) - rotation*M_PI / 180.0;
+    double angle = atan2(300-virtual_pos_Y,300-virtual_pos_X) - rotation*M_PI / 180.0;
     //double angle = std::atan2(virtual_pos_Y, virtual_pos_X)
 
     slam_obj->predict(control);
@@ -180,7 +181,8 @@ void VisualApp::OnLoop(EKFslam* slam_obj){
 
     pointX = static_cast<int>(virtual_pos_X);
     pointY = static_cast<int>(virtual_pos_Y);
-    
+    landmarks_slam[0] = static_cast<int>(slam_obj->state[3]);
+    landmarks_slam[1] = static_cast<int>(slam_obj->state[4]);
     // Ограничение перемещения
     // pointX = std::max(0, std::min(WINDOW_HEIGHT - POINT_SIZE, pointX));
     // pointX = std::max(0, std::min(WINDOW_WIDTH - POINT_SIZE, pointY));
@@ -206,9 +208,6 @@ void VisualApp::OnLoop(EKFslam* slam_obj){
         slam_trail.push_back({slam_pointX + POINT_SIZE/2, slam_pointY + POINT_SIZE/2});
     };
 
-
- 
-    
 
 };
 
@@ -251,12 +250,21 @@ void VisualApp::OnRender() {
     points_l[3] = {landmarks[0].first, landmarks[0].second + POINT_SIZE};
     points_l[4] = {landmarks[0].first, landmarks[0].second}; // Замыкаем контур
     SDL_RenderDrawLines(renderer,points_l,5);
+
+    SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255);
+    SDL_Point points_l_slam[5];
+    points_l_slam[0] = {landmarks_slam[0], landmarks_slam[1]};
+    points_l_slam[1] = {landmarks_slam[0]+ POINT_SIZE,landmarks_slam[1]};
+    points_l_slam[2] = {landmarks_slam[0]  + POINT_SIZE, landmarks_slam[1] + POINT_SIZE};
+    points_l_slam[3] = {landmarks_slam[0], landmarks_slam[1] + POINT_SIZE};
+    points_l_slam[4] = {landmarks_slam[0], landmarks_slam[1]}; // Замыкаем контур
+    SDL_RenderDrawLines(renderer,points_l_slam,5);
     
     // 1. Рисуем заполненный прямоугольник
     
     // 2. Рисуем повернутые границы
     //SDL_RenderDrawRectEx(renderer, &rect, rotation, &center);
-    SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255);
+    
     for (size_t i = 1; i < slam_trail.size(); i++) {
         SDL_RenderDrawLine(renderer,
             slam_trail[i-1].first, slam_trail[i-1].second,
