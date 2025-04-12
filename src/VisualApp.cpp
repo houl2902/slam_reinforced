@@ -16,12 +16,16 @@ VisualApp::VisualApp() {
     slam_virtual_pos_X = 0;
     slam_virtual_pos_Y = 0;
     slam_rotation = 0;
+    noise_rotation = 0;
     pointX = 0;
     pointY = 0;
+    noisePointX = 100;
+    noisePointY = 100;
     rotation = 0.0;
     rotationSpeed = 0.5;
     trail;
     slam_trail;
+    noise_trail;
     landmarks;
     landmarks_slam;
 }
@@ -183,10 +187,20 @@ void VisualApp::OnLoop(EKFslam* slam_obj){
     pointY = static_cast<int>(virtual_pos_Y);
     landmarks_slam[0] = static_cast<int>(slam_obj->state[3]);
     landmarks_slam[1] = static_cast<int>(slam_obj->state[4]);
+
+    pointX = static_cast<int>(virtual_pos_X);
+    pointY = static_cast<int>(virtual_pos_Y);
     // Ограничение перемещения
     // pointX = std::max(0, std::min(WINDOW_HEIGHT - POINT_SIZE, pointX));
     // pointX = std::max(0, std::min(WINDOW_WIDTH - POINT_SIZE, pointY));
-
+    
+    // std::cout << "!!!!!!!!!!!!!!!!!!!!!!!!!!!!" << std::endl;
+    // std::cout << noisePointX << std::endl;
+    // std::cout << noisePointY << std::endl;
+    // std::cout << cos(noise_rotation)*slam_obj->noisy_control[0] << std::endl;
+    // std::cout << sin(noise_rotation)*slam_obj->noisy_control[0] << std::endl;
+    // std::cout << noise_rotation<< std::endl;
+    // std::cout << "!!!!!!!!!!!!!!!!!!!!!!!!!!!!" << std::endl;
     // Добавление точки в трек
     if (!trail.empty()) {
         auto& last = trail.back();
@@ -206,6 +220,21 @@ void VisualApp::OnLoop(EKFslam* slam_obj){
         }
     } else {
         slam_trail.push_back({slam_pointX + POINT_SIZE/2, slam_pointY + POINT_SIZE/2});
+    };
+    noise_rotation+=slam_obj->noisy_control[1];
+    slam_obj->normalizeAngle(noise_rotation);
+    
+    noisePointX += cos(noise_rotation)*slam_obj->noisy_control[0];
+    noisePointY += sin(noise_rotation)*slam_obj->noisy_control[0];
+    int noisePointX_int = static_cast<int>(noisePointX);
+    int noisePointY_int = static_cast<int>(noisePointY);
+    if (!noise_trail.empty()) {
+        auto& last = noise_trail.back();
+        if (last.first != noisePointX_int || last.second != noisePointY_int) {
+            noise_trail.push_back({noisePointX_int + POINT_SIZE/2, noisePointY_int + POINT_SIZE/2});
+        }
+    } else {
+        noise_trail.push_back({noisePointX_int + POINT_SIZE/2, noisePointY_int + POINT_SIZE/2});
     };
 
 
@@ -288,6 +317,24 @@ void VisualApp::OnRender() {
         points2[i] = VisualApp::rotate_point(points2[i], center2, rotation);
     };
     SDL_RenderDrawLines(renderer,points2,5);
+    SDL_SetRenderDrawColor(renderer, 0, 255, 0, 255);
+    int noisePointX_int = static_cast<int>(noisePointX);
+    int noisePointY_int = static_cast<int>(noisePointY);
+    
+    SDL_Point points_noise[5];
+    points_noise[0] = {noisePointX_int, noisePointY_int};
+    points_noise[1] = {noisePointX_int + POINT_SIZE,noisePointY_int};
+    points_noise[2] = {noisePointX_int + POINT_SIZE, noisePointY_int + POINT_SIZE};
+    points_noise[3] = {noisePointX_int, noisePointY_int + POINT_SIZE};
+    points_noise[4] = {noisePointX_int, noisePointY_int}; // Замыкаем контур
+    SDL_RenderDrawLines(renderer,points_noise,5);
+
+    for (size_t i = 1; i < noise_trail.size(); i++) {
+        SDL_RenderDrawLine(renderer,
+            noise_trail[i-1].first, noise_trail[i-1].second,
+            noise_trail[i].first, noise_trail[i].second);
+    }
+
     // Обновление экрана
     SDL_RenderPresent(renderer);
     SDL_Delay(16);

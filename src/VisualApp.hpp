@@ -27,9 +27,13 @@ class VisualApp {
         float rotationSpeed;
         double slam_virtual_pos_X;
         double slam_virtual_pos_Y;
+        double noisePointX;
+        double noisePointY;
+        double noise_rotation;
         float slam_rotation;
         std::vector<std::pair<int,int>> trail;
         std::vector<std::pair<int,int>> slam_trail;
+        std::vector<std::pair<int,int>> noise_trail;
         std::vector<std::pair<int,int>> landmarks;
         int landmarks_slam[2];
  

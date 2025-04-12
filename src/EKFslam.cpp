@@ -6,9 +6,10 @@ EKFslam::EKFslam() : motion_noise(3, 3), covariance_matrix(3, 3), measurement_no
     state[0] = 100; // x
     state[1] = 100; // y
     state[2] = 0.0001; // theta
-    vel_noise_std = 0.1;    // Стандартное отклонение для линейной скорости
+    vel_noise_std = 0.01;    // Стандартное отклонение для линейной скорости
     ang_vel_noise_std = 0.05; 
-    noisy_control[2];
+    noisy_control[0] = 100;
+    noisy_control[1] = 100;
     num_landmarks = 0;
     // Инициализация ковариационной матрицы
     for (int i = 0; i < STATE_SIZE; ++i) {
@@ -20,18 +21,18 @@ EKFslam::EKFslam() : motion_noise(3, 3), covariance_matrix(3, 3), measurement_no
     // Инициализация шумов
     for (int i = 0; i < STATE_SIZE; ++i) {
         for (int j = 0; j < STATE_SIZE; ++j) {
-            motion_noise(i,j) = (i == j) ? 0.01 : 0.0; // Диагональная матрица
+            motion_noise(i,j) = (i == j) ? 20 : 0.0; // Диагональная матрица
         }
     }
 
     for (int i = 0; i < 2; ++i) {
         for (int j = 0; j < 2; ++j) {
-            measurement_noise(i,j) = (i == j) ? 0.1 : 0.0; // Диагональная матрица
+            measurement_noise(i,j) = (i == j) ? 100 : 0.0; // Диагональная матрица
         }
     }
 }
 
-void EKFslam::makeNoisyControl(double control[2]) {
+void EKFslam::makeNoisyControl(double* control) {
     std::normal_distribution<double> vel_noise(0.0, vel_noise_std);
     std::normal_distribution<double> ang_vel_noise(0.0, ang_vel_noise_std);
     
@@ -40,6 +41,8 @@ void EKFslam::makeNoisyControl(double control[2]) {
     motion_noise(0,0) = pow(vel_noise_std, 2);  // σ²_v
     motion_noise(1,1) = pow(vel_noise_std, 2);  // σ²_v
     motion_noise(2,2) = pow(ang_vel_noise_std, 2); // σ²_w
+    // control[0] = noisy_control[0];
+    // control[1] = noisy_control[1];
 }
 
 void EKFslam::addLandmark(double x, double y) {
