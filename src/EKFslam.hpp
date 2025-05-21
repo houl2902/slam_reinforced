@@ -20,6 +20,7 @@ class EKFslam {
     double vel_noise_std;    // Стандартное отклонение для линейной скорости
     double ang_vel_noise_std; // Стандартное отклонение для угловой скорости
     double state[STATE_SIZE+2*MAX_LANDMARKS];
+    void makeNoisyMeasurement(double* measurement);
     // double was_states[STATE_SIZE];
     void normalizeAngle(double& ang);
     void makeNoisyControl(double* control);

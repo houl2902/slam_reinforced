@@ -246,7 +246,7 @@ void VisualApp::OnRender() {
     SDL_RenderClear(renderer);
 
     // Отрисовка трека
-    SDL_SetRenderDrawColor(renderer, 255, 255, 0, 255);
+    SDL_SetRenderDrawColor(renderer, 0, 255, 0, 255);
     for (size_t i = 1; i < trail.size(); i++) {
         SDL_RenderDrawLine(renderer,
                          trail[i-1].first, trail[i-1].second,
@@ -280,7 +280,7 @@ void VisualApp::OnRender() {
     points_l[4] = {landmarks[0].first, landmarks[0].second}; // Замыкаем контур
     SDL_RenderDrawLines(renderer,points_l,5);
 
-    SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255);
+    SDL_SetRenderDrawColor(renderer, 255, 225, 0, 255);
     SDL_Point points_l_slam[5];
     points_l_slam[0] = {landmarks_slam[0], landmarks_slam[1]};
     points_l_slam[1] = {landmarks_slam[0]+ POINT_SIZE,landmarks_slam[1]};
@@ -317,7 +317,7 @@ void VisualApp::OnRender() {
         points2[i] = VisualApp::rotate_point(points2[i], center2, rotation);
     };
     SDL_RenderDrawLines(renderer,points2,5);
-    SDL_SetRenderDrawColor(renderer, 0, 255, 0, 255);
+    SDL_SetRenderDrawColor(renderer, 225, 0, 0, 255);
     int noisePointX_int = static_cast<int>(noisePointX);
     int noisePointY_int = static_cast<int>(noisePointY);
     
