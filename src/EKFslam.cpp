@@ -266,7 +266,8 @@ void EKFslam::update(double measurement[2],int landmark_id) {
     Matrix temp2(3 + 2 * num_landmarks, 2);
     matrixOps.matrixMultiply(covariance_matrix, HT, temp2);
     matrixOps.matrixMultiply(temp2, S_inv, K);
-
+    normalizeAngle(state[2]);
+    
     // 12. Коррекция состояния
     for (int i = 0; i < 3 + 2 * num_landmarks; ++i) {
         state[i] += K(i, 0) * dz[0] + K(i, 1) * dz[1];

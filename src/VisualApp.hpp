@@ -7,6 +7,7 @@
 #include <utility>
 #include <cmath>
 #include <array>
+#include <format>
 #include "EKFslam.hpp"
 
 class VisualApp {
@@ -35,7 +36,7 @@ class VisualApp {
         std::vector<std::pair<int,int>> slam_trail;
         std::vector<std::pair<int,int>> noise_trail;
         std::vector<std::pair<int,int>> landmarks;
-        int landmarks_slam[2];
+        std::vector<std::pair<int,int>>  landmarks_slam;
  
     public:
         VisualApp();

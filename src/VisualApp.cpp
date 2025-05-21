@@ -80,6 +80,8 @@ int VisualApp::OnExecute(EKFslam* slam_obj) {
     int count = 0;
     landmarks.push_back({300,300});
     slam_obj->addLandmark(300.0,300.0);
+    slam_obj->addLandmark(350.0,400.0);
+    landmarks.push_back({350,400});
     while(running) {
         while(SDL_PollEvent(&Event)) {
             VisualApp::OnEvent(&Event);
@@ -185,9 +187,8 @@ void VisualApp::OnLoop(EKFslam* slam_obj){
 
     pointX = static_cast<int>(virtual_pos_X);
     pointY = static_cast<int>(virtual_pos_Y);
-    landmarks_slam[0] = static_cast<int>(slam_obj->state[3]);
-    landmarks_slam[1] = static_cast<int>(slam_obj->state[4]);
-
+    landmarks_slam.push_back({static_cast<int>(slam_obj->state[3]),static_cast<int>(slam_obj->state[4])});
+    landmarks_slam.push_back({static_cast<int>(slam_obj->state[5]),static_cast<int>(slam_obj->state[6])});
     pointX = static_cast<int>(virtual_pos_X);
     pointY = static_cast<int>(virtual_pos_Y);
     // Ограничение перемещения
@@ -271,23 +272,52 @@ void VisualApp::OnRender() {
         points[i] = VisualApp::rotate_point(points[i], center, rotation);
     };
     SDL_RenderDrawLines(renderer,points,5);
-
-    SDL_Point points_l[5];
-    points_l[0] = {landmarks[0].first, landmarks[0].second};
-    points_l[1] = {landmarks[0].first + POINT_SIZE,landmarks[0].second};
-    points_l[2] = {landmarks[0].first  + POINT_SIZE, landmarks[0].second  + POINT_SIZE};
-    points_l[3] = {landmarks[0].first, landmarks[0].second + POINT_SIZE};
-    points_l[4] = {landmarks[0].first, landmarks[0].second}; // Замыкаем контур
-    SDL_RenderDrawLines(renderer,points_l,5);
-
+    for (auto& landmark: landmarks){
+        SDL_Point points_l[5];
+        points_l[0] = {landmark.first, landmark.second};
+        points_l[1] = {landmark.first + POINT_SIZE,landmark.second};
+        points_l[2] = {landmark.first  + POINT_SIZE, landmark.second  + POINT_SIZE};
+        points_l[3] = {landmark.first, landmark.second + POINT_SIZE};
+        points_l[4] = {landmark.first, landmark.second}; // Замыкаем контур
+        std::cout << "=================" << std::endl;
+        std::cout << "LANDMARK GREEN" << std::endl;
+        std::cout << landmark.first << std::endl;
+        std::cout << landmark.second << std::endl;
+        std::cout << "=================" << std::endl;
+        SDL_RenderDrawLines(renderer,points_l,5);
+        
+    }
+    
     SDL_SetRenderDrawColor(renderer, 255, 225, 0, 255);
-    SDL_Point points_l_slam[5];
-    points_l_slam[0] = {landmarks_slam[0], landmarks_slam[1]};
-    points_l_slam[1] = {landmarks_slam[0]+ POINT_SIZE,landmarks_slam[1]};
-    points_l_slam[2] = {landmarks_slam[0]  + POINT_SIZE, landmarks_slam[1] + POINT_SIZE};
-    points_l_slam[3] = {landmarks_slam[0], landmarks_slam[1] + POINT_SIZE};
-    points_l_slam[4] = {landmarks_slam[0], landmarks_slam[1]}; // Замыкаем контур
-    SDL_RenderDrawLines(renderer,points_l_slam,5);
+    SDL_Point points_l_slam1[5];
+    SDL_Point points_l_slam2[5];
+
+    points_l_slam1[0] = {landmarks_slam[0].first, landmarks_slam[0].second};
+    points_l_slam1[1] = {landmarks_slam[0].first + POINT_SIZE,landmarks_slam[0].second};
+    points_l_slam1[2] = {landmarks_slam[0].first + POINT_SIZE, landmarks_slam[0].second + POINT_SIZE};
+    points_l_slam1[3] = {landmarks_slam[0].first, landmarks_slam[0].second + POINT_SIZE};
+    points_l_slam1[4] = {landmarks_slam[0].first, landmarks_slam[0].second}; // Замыкаем контур
+    points_l_slam2[0] = {landmarks_slam[1].first, landmarks_slam[1].second};
+    points_l_slam2[1] = {landmarks_slam[1].first + POINT_SIZE,landmarks_slam[1].second};
+    points_l_slam2[2] = {landmarks_slam[1].first + POINT_SIZE, landmarks_slam[1].second + POINT_SIZE};
+    points_l_slam2[3] = {landmarks_slam[1].first, landmarks_slam[1].second + POINT_SIZE};
+    points_l_slam2[4] = {landmarks_slam[1].first, landmarks_slam[1].second}; 
+    // for (int i = 0; i < landmarks_slam.size(); i++){
+    //     points_l_slam[i] = {landmarks_slam[i].first, landmarks_slam[i].second};
+    //     points_l_slam[i+1] = {landmarks_slam[i].first + POINT_SIZE,landmarks_slam[i].second};
+    //     points_l_slam[i+2] = {landmarks_slam[i].first + POINT_SIZE, landmarks_slam[i].second + POINT_SIZE};
+    //     points_l_slam[i+3] = {landmarks_slam[i].first, landmarks_slam[i].second + POINT_SIZE};
+    //     points_l_slam[i+4] = {landmarks_slam[i].first, landmarks_slam[i].second}; // Замыкаем контур
+    //     std::cout << "=================" << std::endl;
+    //     std::cout << "LANDMARK YELLOW" << std::endl;
+    //     std::cout << landmarks_slam[i].first << std::endl;
+    //     std::cout << landmarks_slam[i].second << std::endl;
+    //     std::cout << "=================" << std::endl;
+        
+    // }
+
+    SDL_RenderDrawLines(renderer,points_l_slam1,5);
+    SDL_RenderDrawLines(renderer,points_l_slam2,5);
     
     // 1. Рисуем заполненный прямоугольник
     
