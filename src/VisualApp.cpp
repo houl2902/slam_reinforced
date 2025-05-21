@@ -146,22 +146,27 @@ void VisualApp::OnLoop(EKFslam* slam_obj){
     if (rotation > 180.0) rotation -= 360.0;
     if (rotation < -180.0) rotation += 360.0;
     //double distance = std::hypot(virtual_pos_X, virtual_pos_Y);
-
-    double distance = sqrt((300-virtual_pos_X) * (300-virtual_pos_X) + (300-virtual_pos_Y) * (300-virtual_pos_Y));
-    if (distance < 1e-10) distance = 1e-10;
-    double angle = atan2(300-virtual_pos_Y,300-virtual_pos_X) - rotation*M_PI / 180.0;
+    slam_obj->predict(control);
+    for (int i; i<landmarks.size(); i++){
+      double distance = sqrt((landmarks[i].first-virtual_pos_X) * (landmarks[i].first-virtual_pos_X) + (landmarks[i].second-virtual_pos_Y) * (landmarks[i].second-virtual_pos_Y));
+      if (distance < 1e-10) distance = 1e-10;
+      double angle = atan2(landmarks[i].second-virtual_pos_Y,landmarks[i].first-virtual_pos_X) - rotation*M_PI / 180.0;
+      double measurements[2] = {distance,angle};
+      std::cout << "=================" << std::endl;
+      std::cout << "MESUREMENT" << std::endl;
+      std::cout << measurements[0] << std::endl;
+      std::cout << measurements[1] << std::endl;
+      std::cout << "=================" << std::endl;
+      if (!std::isnan(measurements[0]) && !std::isnan(measurements[1])){
+        slam_obj->update(measurements,i);
+      }
+    }
     //double angle = std::atan2(virtual_pos_Y, virtual_pos_X)
 
-    slam_obj->predict(control);
-
-    double measurements[2] = {distance,angle};
-    std::cout << "=================" << std::endl;
-    std::cout << measurements[0] << std::endl;
-    std::cout << measurements[1] << std::endl;
-    std::cout << "=================" << std::endl;
-    if (!std::isnan(measurements[0]) && !std::isnan(measurements[1])){
-        slam_obj->update(measurements,0);
-    }
+    
+    
+    
+    
     
     std::cout << "!!!!!!!!!!!!!!!!!!!!!!!!!!!" << std::endl;
     slam_virtual_pos_X = slam_obj->state[0];
