@@ -162,10 +162,6 @@ void VisualApp::OnLoop(EKFslam* slam_obj){
       }
     }
     //double angle = std::atan2(virtual_pos_Y, virtual_pos_X)
-
-    
-    
-    
     
     
     std::cout << "!!!!!!!!!!!!!!!!!!!!!!!!!!!" << std::endl;
