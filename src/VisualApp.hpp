@@ -8,7 +8,9 @@
 #include <cmath>
 #include <array>
 #include <format>
+#include <string>
 #include "EKFslam.hpp"
+#include "Logger.hpp"
 
 class VisualApp {
     private:
@@ -32,6 +34,7 @@ class VisualApp {
         double noisePointY;
         double noise_rotation;
         float slam_rotation;
+        Logger* logger;
         std::vector<std::pair<int,int>> trail;
         std::vector<std::pair<int,int>> slam_trail;
         std::vector<std::pair<int,int>> noise_trail;
