@@ -8,7 +8,8 @@ int main() {
     VisualApp theApp;
     MatrixOperations m_func;
     EKFslam slam;
+    GraphSLAM graph_slam;
     std::cout << "Start app2";
-    return theApp.OnExecute(&slam);
+    return theApp.OnExecute(&slam,&graph_slam);
    
 }

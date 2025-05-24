@@ -67,9 +67,9 @@ void EKFslam::addLandmark(double x, double y) {
     int idx = 3 + 2*num_landmarks-2;
     state[idx] = x;
     state[idx+1] = y;
-    std::cout << "RESIZE" << std::endl;
-    std::cout << idx << std::endl;
-    std::cout << 3 + 2*num_landmarks << std::endl;
+    // std::cout << "RESIZE" << std::endl;
+    // std::cout << idx << std::endl;
+    // std::cout << 3 + 2*num_landmarks << std::endl;
 
     covariance_matrix.resize(3 + 2*num_landmarks,3 + 2*num_landmarks);
     
@@ -108,12 +108,12 @@ void EKFslam::predict(double control[2]) {
     state[2] += w * dt;
     normalizeAngle(state[2]);
 
-    std::cout << "STATE "<<std::endl;
-    std::cout << v << std::endl;
-    std::cout << w << std::endl;
-    std::cout << v * std::cos(state[2])  << std::endl;
-    std::cout << v * std::sin(state[2]) << std::endl;
-    std::cout << state[2] << std::endl;
+    // std::cout << "STATE "<<std::endl;
+    // std::cout << v << std::endl;
+    // std::cout << w << std::endl;
+    // std::cout << v * std::cos(state[2])  << std::endl;
+    // std::cout << v * std::sin(state[2]) << std::endl;
+    // std::cout << state[2] << std::endl;
     // Матрица Якоби F (только для робота)
     Matrix F(3 + 2*num_landmarks, 3 + 2*num_landmarks);
     for (int i = 0; i < F.getSize()[0]; ++i) {
@@ -155,15 +155,15 @@ void EKFslam::update(double measurement[2],int landmark_id) {
     if (landmark_id < 0 || landmark_id >= num_landmarks) {
         throw std::invalid_argument("Invalid landmark ID");
     }
-    std::cout << "MEASUREMENT BEFORE" << std::endl;
-    std::cout << measurement[0] << std::endl;
-    std::cout << measurement[1] << std::endl;
+    // std::cout << "MEASUREMENT BEFORE" << std::endl;
+    // std::cout << measurement[0] << std::endl;
+    // std::cout << measurement[1] << std::endl;
 
     makeNoisyMeasurement(measurement);
 
-    std::cout << "MEASUREMENT AFTER" << std::endl;
-    std::cout << measurement[0] << std::endl;
-    std::cout << measurement[1] << std::endl;
+    // std::cout << "MEASUREMENT AFTER" << std::endl;
+    // std::cout << measurement[0] << std::endl;
+    // std::cout << measurement[1] << std::endl;
 
     // 2. Получение текущего положения робота и landmark
     const double rx = state[0];
@@ -228,19 +228,19 @@ void EKFslam::update(double measurement[2],int landmark_id) {
     Matrix HT(3 + 2 * num_landmarks, 2);
     matrixOps.matrixTranspose(H, HT);
     Matrix S(2, 2);
-    matrixOps.matrixShow(HT);
+    //matrixOps.matrixShow(HT);
     Matrix temp(2, 3 + 2 * num_landmarks);
     matrixOps.matrixMultiply(H, covariance_matrix, temp);
-    std::cout << "ABOBA" << std::endl;
-    std::cout << z_pred[0] << std::endl;
-    std::cout << z_pred[1] << std::endl;
-    std::cout << measurement[0] << std::endl;
-    std::cout << measurement[1] << std::endl;
-    std::cout << dz[1] << std::endl;
-    std::cout << dz[0] << std::endl;
-    std::cout << state[3]  << std::endl;
-    std::cout << state[4]  << std::endl;
-    std::cout << "ABOBA2" << std::endl;
+    // std::cout << "ABOBA" << std::endl;
+    // std::cout << z_pred[0] << std::endl;
+    // std::cout << z_pred[1] << std::endl;
+    // std::cout << measurement[0] << std::endl;
+    // std::cout << measurement[1] << std::endl;
+    // std::cout << dz[1] << std::endl;
+    // std::cout << dz[0] << std::endl;
+    // std::cout << state[3]  << std::endl;
+    // std::cout << state[4]  << std::endl;
+    // std::cout << "ABOBA2" << std::endl;
     matrixOps.matrixMultiply(temp, HT, S);
     Matrix S2(2, 2);
     matrixOps.matrixAdd(S, measurement_noise, S2);
