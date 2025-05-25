@@ -28,7 +28,7 @@ VisualApp::VisualApp() {
     noise_trail;
     landmarks;
     landmarks_slam;
-    history_poses;
+    history_poses_struct;
 }
 
 
@@ -128,7 +128,9 @@ void VisualApp::OnLoop(EKFslam* slam_obj, GraphSLAM* graph_slam_obj){
     if (rotation < -180.0) rotation += 360.0;
     //double distance = std::hypot(virtual_pos_X, virtual_pos_Y);
     slam_obj->predict(control);
-    for (int i; i<landmarks.size(); i++){
+    
+    for (int i = 0; i<landmarks.size(); i++){
+      std::cout << "=================" << std::endl;
       double distance = sqrt((landmarks[i].first-virtual_pos_X) * (landmarks[i].first-virtual_pos_X) + (landmarks[i].second-virtual_pos_Y) * (landmarks[i].second-virtual_pos_Y));
       if (distance < 1e-10) distance = 1e-10;
       double angle = atan2(landmarks[i].second-virtual_pos_Y,landmarks[i].first-virtual_pos_X) - rotation*M_PI / 180.0;
@@ -141,6 +143,11 @@ void VisualApp::OnLoop(EKFslam* slam_obj, GraphSLAM* graph_slam_obj){
       if (!std::isnan(measurements[0]) && !std::isnan(measurements[1])){
         slam_obj->update(measurements,i);
       }
+    //   std::cout << "=================" << std::endl;
+    //   std::cout << "currMESUREMENT" << std::endl;
+    //   std::cout << slam_obj->curr_measurement[0] << std::endl;
+    //   std::cout << slam_obj->curr_measurement[1] << std::endl;
+    //   std::cout << "=================" << std::endl;
     }
     //double angle = std::atan2(virtual_pos_Y, virtual_pos_X)
     
@@ -148,32 +155,18 @@ void VisualApp::OnLoop(EKFslam* slam_obj, GraphSLAM* graph_slam_obj){
     slam_virtual_pos_X = slam_obj->state[0];
     slam_virtual_pos_Y = slam_obj->state[1];
     slam_rotation = slam_obj->state[2];
-    // std::cout << virtual_pos_X << std::endl;
-    // std::cout << virtual_pos_Y << std::endl;
-    // std::cout << rotation << std::endl;
-    // std::cout << x_move_offset << std::endl;
-    // std::cout << y_move_offset << std::endl;
-    // std::cout << pointX << std::endl;
-    // std::cout << pointY << std::endl;
-    // std::cout << slam_virtual_pos_X << std::endl;
-    // std::cout << slam_virtual_pos_Y << std::endl;
-    // std::cout << slam_obj->state[3] << std::endl;
-    // std::cout << slam_obj->state[4]<< std::endl;
-    
 
- 
-    
     auto pose_detected = graph_slam_obj->detectLoop(slam_obj->state);
-    graph_slam_obj->addPose(slam_obj->state);
+    graph_slam_obj->addPose(slam_obj->state, slam_obj->curr_measurement);
     if (pose_detected!=nullptr){
         std::cout << slam_virtual_pos_X << std::endl;
         std::cout << slam_virtual_pos_Y << std::endl;
         std::cout << "+++++++++++++++++++++++++" << std::endl;
-        std::cout << pose_detected[0] << std::endl;
-        std::cout << pose_detected[1] << std::endl;
+        std::cout << pose_detected->x << std::endl;
+        std::cout << pose_detected->y << std::endl;
         std::cout << "+++++++++++++++++++++++++" << std::endl;
     }
-    history_poses = graph_slam_obj->history_poses;
+    history_poses_struct = graph_slam_obj->history_poses_struct;
     // Ограничение перемещения точки в пределах окна
     if (rotation > 360) rotation -= 360;
     if (rotation < 0) rotation += 360;
@@ -248,12 +241,12 @@ void VisualApp::OnRender() {
     }
 
     
-    for (double* pose : history_poses){
+    for (Pose* pose : history_poses_struct){
         SDL_Point points_tringle[4];
-        int graph_point_X = static_cast<int>(pose[0]);
-        int graph_point_Y = static_cast<int>(pose[1]);
+        int graph_point_X = static_cast<int>(pose->x);
+        int graph_point_Y = static_cast<int>(pose->y);
         // std::cout<< graph_point_X << std::endl;
-        // std::cout<< history_poses.size() << std::endl;
+        // std::cout<< history_poses_struct.size() << std::endl;
         // std::cout<< graph_point_Y << std::endl;
         points_tringle[0] = {graph_point_X,graph_point_Y};
         points_tringle[1] = {graph_point_X+POINT_SIZE,graph_point_Y+POINT_SIZE};

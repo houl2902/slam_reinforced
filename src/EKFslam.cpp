@@ -11,6 +11,7 @@ EKFslam::EKFslam() : motion_noise(3, 3), covariance_matrix(3, 3), measurement_no
     noisy_control[0] = 100;
     noisy_control[1] = 100;
     num_landmarks = 0;
+    curr_measurement[2];
     // Инициализация ковариационной матрицы
     for (int i = 0; i < STATE_SIZE; ++i) {
         for (int j = 0; j < STATE_SIZE; ++j) {
@@ -56,6 +57,7 @@ void EKFslam::makeNoisyMeasurement(double* measurement) {
     motion_noise(2,2) = pow(ang_vel_noise_std, 2); // σ²_w
     measurement[0] = noisy_measurement_1;
     measurement[1] = noisy_measurement_2;
+    
 }
 
 void EKFslam::addLandmark(double x, double y) {
@@ -160,10 +162,13 @@ void EKFslam::update(double measurement[2],int landmark_id) {
     // std::cout << measurement[1] << std::endl;
 
     makeNoisyMeasurement(measurement);
+    curr_measurement[0] = measurement[0];
+    curr_measurement[1] = measurement[1];
+    
 
     // std::cout << "MEASUREMENT AFTER" << std::endl;
-    // std::cout << measurement[0] << std::endl;
-    // std::cout << measurement[1] << std::endl;
+    // std::cout << curr_measurement[0] << std::endl;
+    // std::cout << curr_measurement[1] << std::endl;
 
     // 2. Получение текущего положения робота и landmark
     const double rx = state[0];

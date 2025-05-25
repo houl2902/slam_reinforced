@@ -8,6 +8,7 @@
 #include <cmath>
 #include <array>
 #include <format>
+#include "MatrixFunctions.hpp"
 #include "EKFslam.hpp"
 #include "GraphSLAM.hpp"
 
@@ -38,7 +39,7 @@ class VisualApp {
         std::vector<std::pair<int,int>> noise_trail;
         std::vector<std::pair<int,int>> landmarks;
         std::vector<std::pair<int,int>>  landmarks_slam;
-        std::vector<double*> history_poses;
+        std::vector<Pose*> history_poses_struct;
  
     public:
         VisualApp();
