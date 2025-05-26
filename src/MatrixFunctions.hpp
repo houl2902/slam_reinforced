@@ -1,3 +1,4 @@
+#pragma once
 #include <vector>
 #include <algorithm>
 #include <list>
@@ -8,6 +9,7 @@ class MatrixOperations {
    public:
    inline bool isProblematic(double val);
    inline double safeValue(double val);
+   void blockAdd(Matrix&, int, int, Matrix&);
    void matrixMultiply(const Matrix& mat1, const Matrix& mat2, Matrix& result);
    void matrixTranspose( const Matrix& mat1, Matrix& result);
    void matrixAdd( const Matrix& A, const Matrix& B, Matrix& result);

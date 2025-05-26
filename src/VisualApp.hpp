@@ -8,7 +8,6 @@
 #include <cmath>
 #include <array>
 #include <format>
-#include "MatrixFunctions.hpp"
 #include "EKFslam.hpp"
 #include "GraphSLAM.hpp"
 

@@ -85,6 +85,18 @@ void MatrixOperations::matrixTranspose(const Matrix& mat1, Matrix& result) {
     }
 }
 
+void MatrixOperations::blockAdd(Matrix& H, int start_row, int start_col, Matrix& term) {
+    const int* size1 = H.getSize();
+    const int* size2 = term.getSize();
+    for (int i = 0; i < size2[0]; ++i) {
+        for (int j = 0; j < size2[1]; ++j) {
+            if (start_row + i < size1[0] && start_col + j < size1[1]) {
+                H(start_row + i,start_col + j) += term(i,j);
+            }
+        }
+    }
+}
+
 void MatrixOperations::matrixAdd(const Matrix&  A, const Matrix&  B, Matrix& result) {
     const int* size1 = A.getSize();
     

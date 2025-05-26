@@ -1,6 +1,6 @@
 #include <cmath>
 #include <iostream>
-
+#include "MatrixFunctions.hpp"
 #include <random> 
 
 class EKFslam {

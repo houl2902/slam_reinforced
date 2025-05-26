@@ -156,16 +156,7 @@ void VisualApp::OnLoop(EKFslam* slam_obj, GraphSLAM* graph_slam_obj){
     slam_virtual_pos_Y = slam_obj->state[1];
     slam_rotation = slam_obj->state[2];
 
-    auto pose_detected = graph_slam_obj->detectLoop(slam_obj->state);
     graph_slam_obj->addPose(slam_obj->state, slam_obj->curr_measurement);
-    if (pose_detected!=nullptr){
-        std::cout << slam_virtual_pos_X << std::endl;
-        std::cout << slam_virtual_pos_Y << std::endl;
-        std::cout << "+++++++++++++++++++++++++" << std::endl;
-        std::cout << pose_detected->x << std::endl;
-        std::cout << pose_detected->y << std::endl;
-        std::cout << "+++++++++++++++++++++++++" << std::endl;
-    }
     history_poses_struct = graph_slam_obj->history_poses_struct;
     // Ограничение перемещения точки в пределах окна
     if (rotation > 360) rotation -= 360;
@@ -179,6 +170,9 @@ void VisualApp::OnLoop(EKFslam* slam_obj, GraphSLAM* graph_slam_obj){
     landmarks_slam.push_back({static_cast<int>(slam_obj->state[5]),static_cast<int>(slam_obj->state[6])});
     pointX = static_cast<int>(virtual_pos_X);
     pointY = static_cast<int>(virtual_pos_Y);
+    if (graph_slam_obj->odometry_constraints.size() > 3) { // Изменено условие
+        graph_slam_obj->optimizeGraph(15);
+    }
     // Ограничение перемещения
     // pointX = std::max(0, std::min(WINDOW_HEIGHT - POINT_SIZE, pointX));
     // pointX = std::max(0, std::min(WINDOW_WIDTH - POINT_SIZE, pointY));

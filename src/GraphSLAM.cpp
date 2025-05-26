@@ -1,6 +1,7 @@
 #include "GraphSLAM.hpp"
 
 
+
 void GraphSLAM::addPose(double* current_pos,double* measurements){
     
     Pose* new_pose = new Pose(current_pos[0], current_pos[1], current_pos[2], next_pose_id++);
@@ -23,7 +24,9 @@ void GraphSLAM::addPose(double* current_pos,double* measurements){
       std::cout << "HERE first"<< std::endl;
       std::cout << range << std::endl;
       addLandmarkObservation(new_pose->id,range,0);
-      int num_measurements = 1
+      int num_measurements = 1;
+      std::cout << "HERE first2"<< std::endl;
+      std::cout << measurements << std::endl;
       if (measurements != nullptr) {
             for (int i = 0; i < num_measurements; ++i) {
                 if ((i * 2 + 1) < num_measurements * 2) { // Предполагаем, что num_measurements - это количество пар
@@ -47,15 +50,16 @@ void GraphSLAM::addPose(double* current_pos,double* measurements){
     } else {
         delete new_pose;
         next_pose_id--;
-        std::cout << "Поза слишком близко к предыдущей, не добавлена." << std::endl;
+        //std::cout << "Поза слишком близко к предыдущей, не добавлена." << std::endl;
     }
     return;
 };
 
 
-void GraphSLAM::normalizeAngle(double& ang){
+double GraphSLAM::normalizeAngle(double ang){
     double angle = fmod(ang + M_PI, 2*M_PI);
-    ang = (angle < 0) ? angle + 2 * M_PI - M_PI : angle - M_PI;
+    angle = (angle < 0) ? angle + 2 * M_PI - M_PI : angle - M_PI;
+    return angle;
 };
 
 void GraphSLAM::addLandmarkObservation(int pose_id, double range, double bearing) {
@@ -105,7 +109,9 @@ Pose* GraphSLAM::detectLoop(double* current_pos){
         double dx = current_pos[0] - prev_pose->x;
         double dy = current_pos[1] - prev_pose->y;
         double dist_xy = sqrt(dx*dx + dy*dy);
-        if (dist_xy < 5){
+        std::cout << "LOOP MAYBE HERE" << std::endl;
+        std::cout << dist_xy << std::endl;
+        if (dist_xy < 8){
             std::cout << "LOOP HERE" << std::endl;
             std::cout << history_poses_struct.size() << std::endl;
             return prev_pose;
@@ -144,21 +150,21 @@ void GraphSLAM::optimizeGraph(int iterations) {
 
     // Информационные матрицы (обратные ковариациям)
     Matrix omega_odom(3, 3);
-    omega_odom[0][0] = 1.0 / (sigma_odom_x * sigma_odom_x);
-    omega_odom[1][1] = 1.0 / (sigma_odom_y * sigma_odom_y);
-    omega_odom[2][2] = 1.0 / (sigma_odom_theta * sigma_odom_theta);
+    omega_odom(0,0) = 1.0 / (sigma_odom_x * sigma_odom_x);
+    omega_odom(1,1) = 1.0 / (sigma_odom_y * sigma_odom_y);
+    omega_odom(2,2) = 1.0 / (sigma_odom_theta * sigma_odom_theta);
 
     Matrix omega_obs(2, 2);
-    omega_obs[0][0] = 1.0 / (sigma_obs_range * sigma_obs_range);
-    omega_obs[1][1] = 1.0 / (sigma_obs_bearing * sigma_obs_bearing);
+    omega_obs(0,0) = 1.0 / (sigma_obs_range * sigma_obs_range);
+    omega_obs(1,1) = 1.0 / (sigma_obs_bearing * sigma_obs_bearing);
 
     for (int iter = 0; iter < iterations; ++iter) {
         Matrix H(total_vars,total_vars);
-        Matrix b_vec(total_vars,0); // Renamed from b to b_vec to avoid conflict
+        std::vector<double> b_vec(total_vars,0.0); // Renamed from b to b_vec to avoid conflict
 
         // Фиксируем первую позу (если она есть)
         if (num_poses > 0) {
-             for(int i=0; i<3; ++i) H[i][i] += 1e6; // Большое значение для фиксации
+             for(int i=0; i<3; ++i) H(i,i) += 1e6; // Большое значение для фиксации
         }
 
 
@@ -192,14 +198,14 @@ void GraphSLAM::optimizeGraph(int iterations) {
             error_odom[2] = normalizeAngle(z_odom[2] - pred_dth);
 
             Matrix A(3, 3);
-            A[0][0] = -cos(thi); A[0][1] = -sin(thi); A[0][2] = -(xj - xi) * sin(thi) + (yj - yi) * cos(thi);
-            A[1][0] =  sin(thi); A[1][1] = -cos(thi); A[1][2] = -(xj - xi) * cos(thi) - (yj - yi) * sin(thi);
-            A[2][2] = -1.0;
+            A(0,0) = -cos(thi); A(0,1) = -sin(thi); A(0,2) = -(xj - xi) * sin(thi) + (yj - yi) * cos(thi);
+            A(1,0) =  sin(thi); A(1,1) = -cos(thi); A(1,2) = -(xj - xi) * cos(thi) - (yj - yi) * sin(thi);
+            A(2,2) = -1.0;
 
             Matrix B(3, 3);
-            B[0][0] =  cos(thi); B[0][1] = sin(thi);
-            B[1][0] = -sin(thi); B[1][1] = cos(thi);
-            B[2][2] =  1.0;
+            B(0,0) =  cos(thi); B(0,1) = sin(thi);
+            B(1,0) = -sin(thi); B(1,1) = cos(thi);
+            B(2,2) =  1.0;
 
             int idx_i = pose_i_idx * 3;
             int idx_j = pose_j_idx * 3;
@@ -212,18 +218,34 @@ void GraphSLAM::optimizeGraph(int iterations) {
             matrixOps.matrixTranspose(B, BT);
 
             // H_ii += A^T * Omega * A
-            matrix_block_add(H, idx_i, idx_i, matrixOps.(matrix_transpose(A), matrix_multiply(omega_odom, A)));
+            Matrix temp(3, 3);
+            Matrix temp2(3, 3);
+            matrixOps.matrixMultiply(omega_odom,A,temp);
+            matrixOps.matrixMultiply(AT,temp,temp2);
+            matrixOps.blockAdd(H,idx_i, idx_i,temp2);
             // H_jj += B^T * Omega * B
-            matrix_block_add(H, idx_j, idx_j, matrix_multiply(matrix_transpose(B), matrix_multiply(omega_odom, B)));
+            Matrix temp3(3, 3);
+            Matrix temp4(3, 3);
+            matrixOps.matrixMultiply(omega_odom,B,temp3);
+            matrixOps.matrixMultiply(BT,temp3,temp4);
+            matrixOps.blockAdd(H,idx_j, idx_j,temp4);
             // H_ij += A^T * Omega * B
-            matrix_block_add(H, idx_i, idx_j, matrix_multiply(matrix_transpose(A), matrix_multiply(omega_odom, B)));
+            Matrix temp5(3, 3);
+            Matrix temp6(3, 3);
+            matrixOps.matrixMultiply(omega_odom,B,temp5);
+            matrixOps.matrixMultiply(AT,temp5,temp6);
+            matrixOps.blockAdd(H,idx_i, idx_j,temp6);
             // H_ji += B^T * Omega * A
-            matrix_block_add(H, idx_j, idx_i, matrix_multiply(matrix_transpose(B), matrix_multiply(omega_odom, A)));
+            Matrix temp7(3, 3);
+            Matrix temp8(3, 3);
+            matrixOps.matrixMultiply(omega_odom,A,temp7);
+            matrixOps.matrixMultiply(BT,temp7,temp8);
+            matrixOps.blockAdd(H,idx_j, idx_i,temp8);
 
             // b_i += A^T * Omega * e
-            vector_segment_add(b_vec, idx_i, matrix_vector_multiply(matrix_transpose(A), matrix_vector_multiply(omega_odom, error_odom)));
+            vector_segment_add(b_vec, idx_i, matrix_vector_multiply(AT, matrix_vector_multiply(omega_odom, error_odom)));
             // b_j += B^T * Omega * e
-            vector_segment_add(b_vec, idx_j, matrix_vector_multiply(matrix_transpose(B), matrix_vector_multiply(omega_odom, error_odom)));
+            vector_segment_add(b_vec, idx_j, matrix_vector_multiply(BT, matrix_vector_multiply(omega_odom, error_odom)));
         }
 
         // 2. Ограничения наблюдений ориентиров
@@ -260,23 +282,49 @@ void GraphSLAM::optimizeGraph(int iterations) {
             error_obs[1] = normalizeAngle(error_obs[1]);
 
             Matrix C(2, 3);
-            C[0][0] = -dx_lm / sqrt_q; C[0][1] = -dy_lm / sqrt_q; C[0][2] = 0;
-            C[1][0] =  dy_lm / q;     C[1][1] = -dx_lm / q;     C[1][2] = -1;
+            C(0,0) = -dx_lm / sqrt_q; C(0,1) = -dy_lm / sqrt_q; C(0,2) = 0;
+            C(1,0) =  dy_lm / q;     C(1,1) = -dx_lm / q;     C(1,2) = -1;
 
             Matrix D(2, 2);
-            D[0][0] = dx_lm / sqrt_q; D[0][1] = dy_lm / sqrt_q;
-            D[1][0] = -dy_lm / q;     D[1][1] = dx_lm / q;
+            D(0,0) = dx_lm / sqrt_q; D(0,1) = dy_lm / sqrt_q;
+            D(1,0) = -dy_lm / q;     D(1,1) = dx_lm / q;
 
             int H_idx_p = pose_idx * 3;
             int H_idx_l = num_poses * 3 + lm_idx * 2;
 
-            matrix_block_add(H, H_idx_p, H_idx_p, matrix_multiply(matrix_transpose(C), matrix_multiply(omega_obs, C)));
-            matrix_block_add(H, H_idx_l, H_idx_l, matrix_multiply(matrix_transpose(D), matrix_multiply(omega_obs, D)));
-            matrix_block_add(H, H_idx_p, H_idx_l, matrix_multiply(matrix_transpose(C), matrix_multiply(omega_obs, D)));
-            matrix_block_add(H, H_idx_l, H_idx_p, matrix_multiply(matrix_transpose(D), matrix_multiply(omega_obs, C)));
+            Matrix DT(2, 2);
+            Matrix CT(3, 2);
+            matrixOps.matrixTranspose(C, CT);
+            matrixOps.matrixTranspose(D, DT);
 
-            vector_segment_add(b_vec, H_idx_p, matrix_vector_multiply(matrix_transpose(C), matrix_vector_multiply(omega_obs, error_obs)));
-            vector_segment_add(b_vec, H_idx_l, matrix_vector_multiply(matrix_transpose(D), matrix_vector_multiply(omega_obs, error_obs)));
+            Matrix obs_temp(2, 3);
+            Matrix obs_temp2(3, 3);
+            matrixOps.matrixMultiply(omega_obs,C,obs_temp);
+            matrixOps.matrixMultiply(CT,obs_temp,obs_temp2);
+            matrixOps.blockAdd(H, H_idx_p, H_idx_p, obs_temp2);
+
+            //matrix_block_add(H, H_idx_p, H_idx_p, matrix_multiply(matrix_transpose(C), matrix_multiply(omega_obs, C)));
+            Matrix obs_temp3(2, 3);
+            Matrix obs_temp4(3, 3);
+            matrixOps.matrixMultiply(omega_obs,D,obs_temp3);
+            matrixOps.matrixMultiply(DT,obs_temp3,obs_temp4);
+            matrixOps.blockAdd(H, H_idx_l, H_idx_l, obs_temp4);
+
+            //matrix_block_add(H, H_idx_p, H_idx_l, matrix_multiply(matrix_transpose(C), matrix_multiply(omega_obs, D)));
+            Matrix obs_temp5(2, 3);
+            Matrix obs_temp6(3, 3);
+            matrixOps.matrixMultiply(omega_obs,D,obs_temp5);
+            matrixOps.matrixMultiply(CT,obs_temp5,obs_temp6);
+            matrixOps.blockAdd(H, H_idx_p, H_idx_l, obs_temp6);
+            //matrix_block_add(H, H_idx_l, H_idx_p, matrix_multiply(matrix_transpose(D), matrix_multiply(omega_obs, C)));
+            Matrix obs_temp7(2, 3);
+            Matrix obs_temp8(3, 3);
+            matrixOps.matrixMultiply(omega_obs,C,obs_temp7);
+            matrixOps.matrixMultiply(DT,obs_temp7,obs_temp8);
+            matrixOps.blockAdd(H, H_idx_l, H_idx_p, obs_temp8);
+
+            vector_segment_add(b_vec, H_idx_p, matrix_vector_multiply(CT, matrix_vector_multiply(omega_obs, error_obs)));
+            vector_segment_add(b_vec, H_idx_l, matrix_vector_multiply(DT, matrix_vector_multiply(omega_obs, error_obs)));
         }
 
         // 3. Решение системы H * dx_vec_sol = b_vec (Упрощенный Гаусс-Зайдель)
@@ -292,11 +340,11 @@ void GraphSLAM::optimizeGraph(int iterations) {
                 double sigma = 0.0;
                 for (int j = 0; j < total_vars; ++j) {
                     if (i != j) {
-                        sigma += H[i][j] * dx_vec_sol[j];
+                        sigma += H(i,j) * dx_vec_sol[j];
                     }
                 }
-                if (std::abs(H[i][i]) > 1e-9) { // Избегаем деления на ноль
-                    dx_vec_sol[i] = (b_vec[i] - sigma) / H[i][i];
+                if (std::abs(H(i,i)) > 1e-9) { // Избегаем деления на ноль
+                    dx_vec_sol[i] = (b_vec[i] - sigma) / H(i,i);
                 } else {
                     dx_vec_sol[i] = 0; // Если диагональный элемент близок к нулю, это проблема
                 }
@@ -337,6 +385,7 @@ void GraphSLAM::optimizeGraph(int iterations) {
             std::cout << "  Сходимость достигнута." << std::endl;
             break;
         }
+        
     }
     std::cout << "--- Оптимизация графа  завершена ---\n" << std::endl;
 }
