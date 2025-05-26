@@ -9,7 +9,9 @@ void GraphSLAM::addPose(double* current_pos,double* measurements){
     // double* copy_pos = new double[5];  // Предполагаем 5 элементов
     // std::copy(current_pos, current_pos + 5, copy_pos);
     if (history_poses_struct.empty()) {
+
         history_poses_struct.push_back(new_pose);
+        pose_id_to_index[new_pose->id] = history_poses_struct.size() - 1;
         // history_poses.push_back(copy_pos);
         return;
     };
@@ -17,16 +19,13 @@ void GraphSLAM::addPose(double* current_pos,double* measurements){
     double dx = new_pose->x - prev_pose->x;
     double dy = new_pose->y - prev_pose->y;
     double length = sqrt(dx*dx + dy*dy);
-    if (length>25) {
+    
+    if (length>0.1) {
       history_poses_struct.push_back(new_pose);
       pose_id_to_index[new_pose->id] = history_poses_struct.size() - 1;
+      
       double range = measurements[0];
-      std::cout << "HERE first"<< std::endl;
-      std::cout << range << std::endl;
-      addLandmarkObservation(new_pose->id,range,0);
       int num_measurements = 1;
-      std::cout << "HERE first2"<< std::endl;
-      std::cout << measurements << std::endl;
       if (measurements != nullptr) {
             for (int i = 0; i < num_measurements; ++i) {
                 if ((i * 2 + 1) < num_measurements * 2) { // Предполагаем, что num_measurements - это количество пар
@@ -60,6 +59,22 @@ double GraphSLAM::normalizeAngle(double ang){
     double angle = fmod(ang + M_PI, 2*M_PI);
     angle = (angle < 0) ? angle + 2 * M_PI - M_PI : angle - M_PI;
     return angle;
+};
+
+void GraphSLAM::addLandmark(Landmark* lm) {
+    if (!lm) return;
+    landmark_id_to_index[lm->id] = static_cast<int>(landmarks.size());
+    landmarks.push_back(lm);
+};
+
+void GraphSLAM::addOdometryConstraint(OdometryConstraint* oc) {
+    if (!oc) return;
+    odometry_constraints.push_back(oc);
+};
+
+void GraphSLAM::addObservation(Observation* obs) { 
+    if (!obs) return;
+    observations.push_back(obs); 
 };
 
 void GraphSLAM::addLandmarkObservation(int pose_id, double range, double bearing) {
@@ -103,7 +118,7 @@ void GraphSLAM::addLoopClosureConstraint(int current_pose_id, int matched_histor
 };
 
 Pose* GraphSLAM::detectLoop(double* current_pos){
-    if (history_poses_struct.size() < 10) return nullptr;
+    if (history_poses_struct.size() < 1) return nullptr;
     for (size_t i = 0; i < history_poses_struct.size()-1; ++i){
         Pose* prev_pose = history_poses_struct[i];
         double dx = current_pos[0] - prev_pose->x;
@@ -111,7 +126,7 @@ Pose* GraphSLAM::detectLoop(double* current_pos){
         double dist_xy = sqrt(dx*dx + dy*dy);
         std::cout << "LOOP MAYBE HERE" << std::endl;
         std::cout << dist_xy << std::endl;
-        if (dist_xy < 8){
+        if (dist_xy < 0.5){
             std::cout << "LOOP HERE" << std::endl;
             std::cout << history_poses_struct.size() << std::endl;
             return prev_pose;
@@ -120,6 +135,11 @@ Pose* GraphSLAM::detectLoop(double* current_pos){
     };
     return nullptr;
 };
+
+Pose* GraphSLAM::getPoseByIndex(size_t index) { // Use size_t for index
+    if (index >= history_poses_struct.size()) return nullptr;
+    return history_poses_struct[index];
+}
 
 void GraphSLAM::optimizeGraph(int iterations) {
     std::cout << "\n--- Попытка оптимизации графа ---" << std::endl;
@@ -328,45 +348,69 @@ void GraphSLAM::optimizeGraph(int iterations) {
         }
 
         // 3. Решение системы H * dx_vec_sol = b_vec (Упрощенный Гаусс-Зайдель)
-        // ВНИМАНИЕ: Этот решатель очень базовый и может не сойтись или быть очень медленным.
-        // Он требует, чтобы матрица H была диагонально доминирующей или симметричной положительно определенной.
-        std::vector<double> dx_vec_sol(total_vars, 0.0);
-        int solver_iterations = 100; // Количество итераций для решателя
-        double solver_tolerance = 1e-5;
+        // 3. Решение системы H * dx_vec_sol = b_vec (Метод сопряженных градиентов)
+        std::vector<double> dx_vec_sol(total_vars, 0.0); // Начальное приближение x_0 = 0
+        std::vector<double> r = b_vec; // r_0 = b - A*x_0. Так как x_0 = 0, r_0 = b_vec
+        std::vector<double> p = r;     // p_0 = r_0
+        double rsold = vector_dot_product(r, r);
+        
+        int solver_iterations = std::min(total_vars, 100); // Макс. итераций для CG (может быть total_vars)
+        double solver_tolerance_sq = 1e-10; // Используем квадрат нормы невязки для сравнения (1e-5)^2
 
-        for (int s_iter = 0; s_iter < solver_iterations; ++s_iter) {
-            std::vector<double> prev_dx_vec_sol = dx_vec_sol;
-            for (int i = 0; i < total_vars; ++i) {
-                double sigma = 0.0;
-                for (int j = 0; j < total_vars; ++j) {
-                    if (i != j) {
-                        sigma += H(i,j) * dx_vec_sol[j];
-                    }
+        bool solver_converged = false;
+        if (std::sqrt(rsold) < 1e-9) { // Если b_vec (и следовательно r_0) очень мал, решение уже найдено (dx_vec_sol=0)
+            std::cout << "  Решатель (CG): Начальная невязка мала, решение dx=0." << std::endl;
+            solver_converged = true;
+        } else {
+            for (int s_iter = 0; s_iter < solver_iterations; ++s_iter) {
+                std::vector<double> Ap = matrix_vector_multiply(H, p);
+                double p_dot_Ap = vector_dot_product(p, Ap);
+                
+                double alpha;
+                if (std::abs(p_dot_Ap) < 1e-12) { // Избегаем деления на ноль или очень маленькое число
+                                                 // Это может произойти, если p ортогонален Ap, или p близок к нулю
+                    std::cout << "  Решатель (CG): p_dot_Ap близко к нулю на итерации " << s_iter + 1 << ". Остановка." << std::endl;
+                    // Если p_dot_Ap == 0, то либо p=0 (что означает, что r=0, и мы должны были сойтись),
+                    // либо H не положительно определена на направлении p.
+                    // В этом случае текущее dx_vec_sol - лучшее, что мы можем сделать с этим p.
+                    break; 
                 }
-                if (std::abs(H(i,i)) > 1e-9) { // Избегаем деления на ноль
-                    dx_vec_sol[i] = (b_vec[i] - sigma) / H(i,i);
-                } else {
-                    dx_vec_sol[i] = 0; // Если диагональный элемент близок к нулю, это проблема
+                alpha = rsold / p_dot_Ap;
+
+                dx_vec_sol = vector_add(dx_vec_sol, vector_scalar_multiply(p, alpha));
+                r = vector_subtract(r, vector_scalar_multiply(Ap, alpha));
+                
+                double rsnew = vector_dot_product(r, r);
+                if (std::sqrt(rsnew) < std::sqrt(solver_tolerance_sq)) { // Проверка сходимости по норме невязки
+                    std::cout << "  Решатель (CG) сошелся на итерации " << s_iter + 1 << " с невязкой " << std::sqrt(rsnew) << std::endl;
+                    solver_converged = true;
+                    break;
                 }
-            }
-            if (vector_norm(vector_subtract(dx_vec_sol, prev_dx_vec_sol)) < solver_tolerance) {
-                std::cout << "  Решатель сошелся на итерации " << s_iter + 1 << std::endl;
-                break;
+                
+                p = vector_add(r, vector_scalar_multiply(p, rsnew / rsold));
+                rsold = rsnew;
+
+                if (s_iter == solver_iterations - 1 && !solver_converged) {
+                    std::cout << "  Решатель (CG) достиг максимального количества итераций (" << solver_iterations << ") с невязкой " << std::sqrt(rsnew) << std::endl;
+                }
             }
         }
+       
         
         // 4. Обновление состояний
         for (int i = 0; i < num_poses; ++i) {
             std::vector<double> current_pose_val = history_poses_struct[i]->toVector();
             std::vector<double> update_segment(3);
             for(int k=0; k<3; ++k) update_segment[k] = dx_vec_sol[i * 3 + k];
-            
+            std::cout << "  Обновление состояний1  " << i << " "<<  update_segment[0] << " " << update_segment[1] << " " << update_segment[2] << " "  << std::endl;
+            std::cout << "  Обновление состояний2  " << i << " " <<  current_pose_val[0] << " " << current_pose_val[1] << " " << current_pose_val[2]<< " " << std::endl;
             // Не обновляем первую позу, если она зафиксирована (ее dx будет ~0)
             // Однако, если мы хотим полностью зафиксировать, dx для нее должен быть принудительно 0.
             // В текущей реализации с большим H[0][0] ее dx будет очень мал.
             current_pose_val = vector_add(current_pose_val, update_segment);
             history_poses_struct[i]->fromVector(current_pose_val);
             history_poses_struct[i]->theta = normalizeAngle(history_poses_struct[i]->theta);
+            std::cout << "  Обновление состояний3  " << i << " " <<  history_poses_struct[i]->x<< " " << history_poses_struct[i]->y << " "<< history_poses_struct[i]->theta<< " " << std::endl;
         }
 
         for (int i = 0; i < num_landmarks; ++i) {

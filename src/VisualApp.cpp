@@ -84,8 +84,8 @@ int VisualApp::OnExecute(EKFslam* slam_obj, GraphSLAM* graph_slam_obj) {
     pointY = WINDOW_HEIGHT / 2 - POINT_SIZE / 2;
     landmarks.push_back({300,300});
     slam_obj->addLandmark(300.0,300.0);
-    //slam_obj->addLandmark(350.0,400.0);
-   // landmarks.push_back({350,400});
+    slam_obj->addLandmark(350.0,400.0);
+    landmarks.push_back({350,400});
     while(running) {
         while(SDL_PollEvent(&Event)) {
             VisualApp::OnEvent(&Event);

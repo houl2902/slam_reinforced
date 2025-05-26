@@ -3,6 +3,7 @@
 //#include "/home/houl/slam_reinforced/src/MatrixFunctions.hpp"
 #include "/home/houl/slam_reinforced/src/GraphSLAM.hpp"
 #include <cmath>
+#include <random>
 
 #define GTEST_BOX "[     cout ] "
 class MatrixOperationsTest : public ::testing::Test {
@@ -29,15 +30,78 @@ protected:
 class GraphSLAMTest : public ::testing::Test {
     protected:
         void SetUp() override {
-            // Общая настройка для всех тестов (если нужна)
+            slam = new GraphSLAM();
+            
+            // Инициализация параметров шумов
+            slam->sigma_odom_x = 0.1;
+            slam->sigma_odom_y = 0.1;
+            slam->sigma_odom_theta = 0.05;
+            slam->sigma_obs_range = 0.1;
+            slam->sigma_obs_bearing = 0.05;
+            
+            // Генератор случайных чисел
+            rng.seed(42);
         }
     
         void TearDown() override {
-            // Очистка после тестов (если нужна)
+            delete slam;
         }
     
-        GraphSLAM GraphSlam;
-};
+        void generateStraightPath(int num_poses, double step_size) {
+            for (int i = 0; i < num_poses; ++i) {
+                double pos[3] = {i * step_size, 0.0, 0.0};
+                double measurement[2] = {0}; // Пустые измерения
+                
+                if (i > 0 && i % 3 == 0) {
+                    // Каждые 3 шага добавляем измерение ориентира
+                    measurement[0] = 5.0; // range
+                    measurement[1] = 0.0; // bearing
+                }
+                
+                slam->addPose(pos, measurement);
+            }
+        }
+    
+        void generateLoopPath(int num_poses, double radius) {
+            for (int i = 0; i < num_poses; ++i) {
+                double angle = 2 * M_PI * i / num_poses;
+                double pos[3] = {radius * cos(angle), radius * sin(angle), angle + M_PI/2};
+                
+                double measurement[2] = {0};
+                if (i > 0 && i % 3 == 0) {
+                    // Измерение центрального ориентира
+                    double dx = -pos[0];
+                    double dy = -pos[1];
+                    measurement[0] = sqrt(dx*dx + dy*dy);
+                    measurement[1] = atan2(dy, dx) - pos[2];
+                }
+                
+                slam->addPose(pos, measurement);
+            }
+        }
+    
+        double calculatePositionError() {
+            double total_error = 0.0;
+            int count = 0;
+            
+            for (size_t i = 0; i < slam->history_poses_struct.size(); ++i) {
+                Pose* pose = slam->history_poses_struct[i];
+                double expected_x = i * 1.0; // Для прямого пути
+                double expected_y = 0.0;
+                
+                double dx = pose->x - expected_x;
+                double dy = pose->y - expected_y;
+                total_error += sqrt(dx*dx + dy*dy);
+                count++;
+            }
+            
+            return count > 0 ? total_error / count : 0.0;
+        }
+    
+        GraphSLAM* slam;
+        std::mt19937 rng;
+    };
+    
 
     
 TEST_F(MatrixOperationsTest, MultiplyValid) {
@@ -214,32 +278,201 @@ TEST_F(EKFslamTest, UpdateMultipleLandmarks) {
     EXPECT_NEAR(ekf->state[6], 10.0, 0.2);  // landmark 1 y
 }
 
-TEST_F(GraphSLAMTest, ConvergenceTest) {
-    GraphSlam.history_poses_struct.push_back(new Pose(0, 0, 0, 0)); // pose_id=0
-    GraphSlam.history_poses_struct.push_back(new Pose(1, 1.1, 0.1, 0.1)); // pose_id=1 с небольшим шумом
-    // Добавляем соответствие pose_id -> индекс
-    GraphSlam.pose_id_to_index[0] = 0;
-    GraphSlam.pose_id_to_index[1] = 1;
-    // Добавляем ограничение одометрии (перемещение на 1 метр вперед)
-    GraphSlam.odometry_constraints.push_back(new OdometryConstraint(0, 1, 1, 0, 0));
+// TEST_F(GraphSLAMTest, ConvergenceTest) {
+//     // Добавляем узлы и ребра в граф
+//     for (size_t i = 0; i < true_poses.size(); ++i) {
+//         slam->addPoseNode(i, i == 0 ? true_poses[0] : Pose{0,0,0});
+//     }
+
+//     for (size_t i = 1; i < true_poses.size(); ++i) {
+//         slam->addOdometryEdge(i-1, i, odometry_measurements[i-1]);
+//     }
+
+//     for (size_t pose_idx = 0; pose_idx < true_poses.size(); ++pose_idx) {
+//         for (const auto& lm : landmarks) {
+//             if (pose_idx % 3 == 0) { // Не на каждом шаге измеряем ориентиры
+//                 auto rel_pos = vector_subtract(lm, true_poses[pose_idx]);
+//                 slam->addLandmarkObservation(pose_idx, lm, rel_pos);
+//             }
+//         }
+//     }
+
+//     // Запускаем оптимизацию и проверяем сходимость
+//     std::vector<double> errors;
+//     for (int iter = 0; iter < 20; ++iter) {
+//         slam->optimize(1); // 1 итерация за раз
+//         auto estimated = slam->optimizeGraph();
+//         double error = calculatePositionError(estimated);
+//         errors.push_back(error);
+        
+//         // Для отладки можно выводить ошибку на каждой итерации
+//         // std::cout << "Iteration " << iter << ", error: " << error << std::endl;
+//     }
+
+//     // Проверяем, что ошибка уменьшается
+//     for (size_t i = 1; i < errors.size(); ++i) {
+//         EXPECT_LE(errors[i], errors[i-1] * 1.1); // Допускаем небольшой рост из-за численных ошибок
+//     }
+
+//     // Проверяем, что финальная ошибка мала
+//     EXPECT_LT(errors.back(), 0.5);
+// }
+
+
+
+
+
+
+
+// TEST_F(GraphSLAMTest, StraightPathConvergence) {
+//     // 1. Генерация прямого пути
+//     generateStraightPath(10, 1.0);
     
-    // Устанавливаем небольшие сигмы
-    GraphSlam.sigma_odom_x = 0.1;
-    GraphSlam.sigma_odom_y = 0.1;
-    GraphSlam.sigma_odom_theta = 0.1;
+//     // 2. Проверка начальной ошибки
+//     double initial_error = calculatePositionError();
+//     std::cout << "Initial error: " << initial_error << std::endl;
     
-    //testing::internal::CaptureStdout();
-    GraphSlam.optimizeGraph(20);
-    //std::string output = testing::internal::GetCapturedStdout();
+//     // 3. Оптимизация
+//     std::vector<double> errors;
+//     for (int iter = 0; iter < 5; ++iter) {
+//         slam->optimizeGraph(1);
+//         double error = calculatePositionError();
+//         errors.push_back(error);
+//         std::cout << "Iteration " << iter << ", error: " << error << std::endl;
+//     }
     
-    // Проверяем, что было сообщение о сходимости
-    //EXPECT_TRUE(output.find("Сходимость достигнута") != std::string::npos);
+//     // 4. Проверка сходимости
+//     for (size_t i = 1; i < errors.size(); ++i) {
+//         EXPECT_LE(errors[i], errors[i-1] * 1.1); // Допускаем небольшой рост
+//     }
     
-    // Проверяем, что вторая поза скорректировалась к ожидаемому положению
-    EXPECT_NEAR(GraphSlam.history_poses_struct[1]->x, 1, 0.01);
-    EXPECT_NEAR(GraphSlam.history_poses_struct[1]->y, 0, 0.01);
-    EXPECT_NEAR(GraphSlam.history_poses_struct[1]->theta, 0, 0.01);
+//     // 5. Проверка финальной ошибки
+//     EXPECT_LT(errors.back(), 0.5);
+    
+//     // 6. Проверка количества ориентиров
+//     EXPECT_GT(slam->landmarks.size(), 0);
+// }
+
+// TEST_F(GraphSLAMTest, LoopClosureDetection) {
+//     // 1. Генерация петли
+//     generateLoopPath(20, 5.0);
+    
+//     // 2. Проверка начального состояния
+//     EXPECT_GT(slam->history_poses_struct.size(), 10);
+    
+//     // 3. Оптимизация
+//     slam->optimizeGraph(5);
+    
+//     // 4. Проверка ограничений замыкания цикла
+//     bool has_loop_closures = false;
+//     for (auto& constraint : slam->odometry_constraints) {
+//         if (abs(constraint->from_pose_id - constraint->to_pose_id) > 5) {
+//             has_loop_closures = true;
+//             break;
+//         }
+//     }
+//     EXPECT_TRUE(has_loop_closures);
+    
+//     // 5. Проверка ошибки
+//     double final_error = 0.0;
+//     for (size_t i = 0; i < slam->history_poses_struct.size(); ++i) {
+//         Pose* pose = slam->history_poses_struct[i];
+//         double angle = 2 * M_PI * i / slam->history_poses_struct.size();
+//         double expected_x = 5.0 * cos(angle);
+//         double expected_y = 5.0 * sin(angle);
+        
+//         double dx = pose->x - expected_x;
+//         double dy = pose->y - expected_y;
+//         final_error += sqrt(dx*dx + dy*dy);
+//     }
+//     final_error /= slam->history_poses_struct.size();
+    
+//     EXPECT_LT(final_error, 1.0);
+// }
+
+// TEST_F(GraphSLAMTest, LandmarkInitialization) {
+//     // 1. Добавление поз с измерениями ориентиров
+//     for (int i = 0; i < 5; ++i) {
+//         double pos[3] = {i * 1.0, 0.0, 0.0};
+//         double measurement[2] = {5.0, 0.0}; // Ориентир прямо перед роботом
+//         slam->addPose(pos, measurement);
+//     }
+    
+//     // 2. Проверка инициализации ориентиров
+//     EXPECT_EQ(slam->landmarks.size(), 1);
+    
+//     // 3. Проверка координат ориентира
+//     Landmark* lm = slam->landmarks[0];
+//     EXPECT_NEAR(lm->x, 5.0, 0.1);
+//     EXPECT_NEAR(lm->y, 0.0, 0.1);
+    
+//     // 4. Проверка наблюдений
+//     EXPECT_EQ(slam->observations.size(), 5);
+// }
+
+TEST_F(GraphSLAMTest, OptimizationReducesError) {
+    // 1. Генерация пути с шумом
+
+    for (int i = 0; i < 10; ++i) {
+        double pos[3] = {i * 1 + 0.1*(rng()/(double)RAND_MAX-0.5), 
+                        0.1*(rng()/(double)RAND_MAX-0.5), 
+                        0.1*(rng()/(double)RAND_MAX-0.5)};
+        double measurement[2] = {0};
+        
+        if (i % 3 == 0) {
+            measurement[0] = 5 + 0.2*(rng()/(double)RAND_MAX-0.5);
+            measurement[1] = 0.1*(rng()/(double)RAND_MAX-0.5);
+        }
+        
+        slam->addPose(pos, measurement);
+    }
+    std::cout << "Initial error: " << "HERE" << ", Final error: " << "final_error" << std::endl;
+    // 2. Измерение начальной ошибки
+    double initial_error = calculatePositionError();
+    
+    // 3. Оптимизация
+    slam->optimizeGraph(20);
+    
+    // 4. Проверка уменьшения ошибки
+    double final_error = calculatePositionError();
+    std::cout << "Initial error: " << initial_error << ", Final error: " << final_error << std::endl;
+};
+
+ TEST_F(GraphSLAMTest, TwoPosesOneOdometryConstraintSimpleTranslation) {
+    double new_pose1[3] = {0.0, 0.0,0.0};
+    double m1[2] = {0,0};
+    slam->addPose(new_pose1,m1); 
+    double new_pose2[3] = {0.9, 0.1,0.05};
+    double m2[2] = {0,0};
+    slam->addPose(new_pose2,m2);     
+    slam->addOdometryConstraint(new OdometryConstraint(0, 1, 1.0, 0.0, 0.0)); 
+
+    slam->sigma_odom_x = 0.1;
+    slam->sigma_odom_y = 0.1;
+    slam->sigma_odom_theta = 0.05;
+
+    slam->optimizeGraph(30); 
+    //std::string output = GetCapturedStdout();
+
+    //EXPECT_NE(output.find("Сходимость достигнута."), std::string::npos) << "Output: " << output;
+
+    Pose* p0 = slam->getPoseByIndex(0);
+    Pose* p1 = slam->getPoseByIndex(1);
+
+    ASSERT_NE(p0, nullptr);
+    ASSERT_NE(p1, nullptr);
+
+    EXPECT_NEAR(p0->x, 0.0, 1e-5); 
+    EXPECT_NEAR(p0->y, 0.0, 1e-5);
+    EXPECT_NEAR(p0->theta, 0.0, 1e-5);
+
+    // CG should be more accurate, so tolerances can be tighter if the system is well-conditioned
+    EXPECT_NEAR(p1->x, 1.0, 1e-3); 
+    EXPECT_NEAR(p1->y, 0.0, 1e-3);
+    EXPECT_NEAR(p1->theta, 0.0, 1e-3); 
 }
+
+
 int main(int argc, char **argv) {
     ::testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();

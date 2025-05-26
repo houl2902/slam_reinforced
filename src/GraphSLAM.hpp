@@ -4,6 +4,11 @@
 #include <unordered_map>
 #include <stdexcept>
 #include <cmath>
+#include <map>
+#include <string>
+#include <iomanip>
+#include <numeric>     // For std::accumulate, std::inner_product
+#include <algorithm>   // For std::transform (not used yet)
 #include "MatrixFunctions.hpp"
 
 inline void vector_segment_add(std::vector<double>& b, int start_idx, const std::vector<double>& term) {
@@ -63,7 +68,24 @@ inline std::vector<double> vector_subtract(const std::vector<double>& a, const s
         result[i] = a[i] - b[i];
     }
     return result;
-}
+};
+
+inline double vector_dot_product(const std::vector<double>& a, const std::vector<double>& b) {
+    if (a.size() != b.size()) {
+        throw std::runtime_error("Vector dimensions mismatch for dot product. a_size=" + std::to_string(a.size()) + " b_size=" + std::to_string(b.size()));
+    }
+    // Using std::inner_product for efficiency and conciseness
+    return std::inner_product(a.begin(), a.end(), b.begin(), 0.0);
+};
+
+inline std::vector<double> vector_scalar_multiply(const std::vector<double>& vec, double scalar) {
+    std::vector<double> result = vec; // Make a copy
+    for (double &val : result) {
+        val *= scalar;
+    }
+    return result;
+};
+
 struct Pose {
     int id;
     double x, y, theta;
@@ -80,6 +102,8 @@ struct Pose {
         }
     }
 };
+
+
 
 struct Landmark {
     int id;
@@ -165,5 +189,9 @@ class GraphSLAM
     void optimizeGraph(int iterations = 10);
     double normalizeAngle(double ang);
     void addLoopClosureConstraint(int current_pose_id, int matched_historical_pose_id);
+    Pose* getPoseByIndex(size_t index);
+    void addLandmark(Landmark* lm);
+    void addOdometryConstraint(OdometryConstraint* oc);
+    void addObservation(Observation* obs);
     MatrixOperations matrixOps;
 };
