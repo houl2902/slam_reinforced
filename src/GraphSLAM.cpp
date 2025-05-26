@@ -350,7 +350,7 @@ void GraphSLAM::optimizeGraph(int iterations) {
                 }
             }
             if (vector_norm(vector_subtract(dx_vec_sol, prev_dx_vec_sol)) < solver_tolerance) {
-                // std::cout << "  Решатель сошелся на итерации " << s_iter + 1 << std::endl;
+                std::cout << "  Решатель сошелся на итерации " << s_iter + 1 << std::endl;
                 break;
             }
         }
@@ -385,7 +385,7 @@ void GraphSLAM::optimizeGraph(int iterations) {
             std::cout << "  Сходимость достигнута." << std::endl;
             break;
         }
-        
+
     }
     std::cout << "--- Оптимизация графа  завершена ---\n" << std::endl;
 }
