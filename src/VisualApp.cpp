@@ -28,7 +28,10 @@ VisualApp::VisualApp() {
     noise_trail;
     landmarks;
     landmarks_slam;
+
     history_poses_struct;
+    logger = NULL;
+
 }
 
 
@@ -68,6 +71,7 @@ bool VisualApp::OnInit() {
         return 1;
     }
 
+    logger = new Logger({"greenVector.txt","yellowVector.txt","redVector.txt"});
     return true;
 }
 
@@ -80,8 +84,8 @@ int VisualApp::OnExecute(EKFslam* slam_obj, GraphSLAM* graph_slam_obj) {
     pointY = WINDOW_HEIGHT / 2 - POINT_SIZE / 2;
     landmarks.push_back({300,300});
     slam_obj->addLandmark(300.0,300.0);
-    slam_obj->addLandmark(350.0,400.0);
-    landmarks.push_back({350,400});
+    //slam_obj->addLandmark(350.0,400.0);
+   // landmarks.push_back({350,400});
     while(running) {
         while(SDL_PollEvent(&Event)) {
             VisualApp::OnEvent(&Event);
@@ -123,10 +127,21 @@ void VisualApp::OnLoop(EKFslam* slam_obj, GraphSLAM* graph_slam_obj){
         rotation -= rotationSpeed;
         control[1] = -rotationSpeed*M_PI / 180.0;
     } 
+
     rotation = std::fmod(rotation, 360.0);
     if (rotation > 180.0) rotation -= 360.0;
     if (rotation < -180.0) rotation += 360.0;
     //double distance = std::hypot(virtual_pos_X, virtual_pos_Y);
+
+   
+
+    double logger_array_green[3] = {virtual_pos_X,virtual_pos_Y,rotation};
+    logger->writeMatrixCoords(logger_array_green,"greenVector.txt");
+    double distance = sqrt((300-virtual_pos_X) * (300-virtual_pos_X) + (300-virtual_pos_Y) * (300-virtual_pos_Y));
+    if (distance < 1e-10) distance = 1e-10;
+    double angle = atan2(300-virtual_pos_Y,300-virtual_pos_X) - rotation*M_PI / 180.0;
+    //double angle = std::atan2(virtual_pos_Y, virtual_pos_X)
+
     slam_obj->predict(control);
     
     for (int i = 0; i<landmarks.size(); i++){
@@ -151,13 +166,18 @@ void VisualApp::OnLoop(EKFslam* slam_obj, GraphSLAM* graph_slam_obj){
     }
     //double angle = std::atan2(virtual_pos_Y, virtual_pos_X)
     
-   
+
     slam_virtual_pos_X = slam_obj->state[0];
     slam_virtual_pos_Y = slam_obj->state[1];
     slam_rotation = slam_obj->state[2];
 
     graph_slam_obj->addPose(slam_obj->state, slam_obj->curr_measurement);
     history_poses_struct = graph_slam_obj->history_poses_struct;
+
+    logger->writeMatrixCoords(slam_obj->state,"yellowVector.txt");
+    
+   
+
     // Ограничение перемещения точки в пределах окна
     if (rotation > 360) rotation -= 360;
     if (rotation < 0) rotation += 360;
@@ -170,20 +190,11 @@ void VisualApp::OnLoop(EKFslam* slam_obj, GraphSLAM* graph_slam_obj){
     landmarks_slam.push_back({static_cast<int>(slam_obj->state[5]),static_cast<int>(slam_obj->state[6])});
     pointX = static_cast<int>(virtual_pos_X);
     pointY = static_cast<int>(virtual_pos_Y);
+
     if (graph_slam_obj->odometry_constraints.size() > 3) { // Изменено условие
         graph_slam_obj->optimizeGraph(15);
     }
-    // Ограничение перемещения
-    // pointX = std::max(0, std::min(WINDOW_HEIGHT - POINT_SIZE, pointX));
-    // pointX = std::max(0, std::min(WINDOW_WIDTH - POINT_SIZE, pointY));
     
-    // std::cout << "!!!!!!!!!!!!!!!!!!!!!!!!!!!!" << std::endl;
-    // std::cout << noisePointX << std::endl;
-    // std::cout << noisePointY << std::endl;
-    // std::cout << cos(noise_rotation)*slam_obj->noisy_control[0] << std::endl;
-    // std::cout << sin(noise_rotation)*slam_obj->noisy_control[0] << std::endl;
-    // std::cout << noise_rotation<< std::endl;
-    // std::cout << "!!!!!!!!!!!!!!!!!!!!!!!!!!!!" << std::endl;
     // Добавление точки в трек
     if (!trail.empty()) {
         auto& last = trail.back();
@@ -209,6 +220,8 @@ void VisualApp::OnLoop(EKFslam* slam_obj, GraphSLAM* graph_slam_obj){
     
     noisePointX += cos(noise_rotation)*slam_obj->noisy_control[0];
     noisePointY += sin(noise_rotation)*slam_obj->noisy_control[0];
+    double logger_array_red[3] = {noisePointX,noisePointY,noise_rotation};
+    logger->writeMatrixCoords(logger_array_red,"redVector.txt");
     int noisePointX_int = static_cast<int>(noisePointX);
     int noisePointY_int = static_cast<int>(noisePointY);
     if (!noise_trail.empty()) {
@@ -289,14 +302,17 @@ void VisualApp::OnRender() {
     points_l_slam1[2] = {landmarks_slam[0].first + POINT_SIZE, landmarks_slam[0].second + POINT_SIZE};
     points_l_slam1[3] = {landmarks_slam[0].first, landmarks_slam[0].second + POINT_SIZE};
     points_l_slam1[4] = {landmarks_slam[0].first, landmarks_slam[0].second}; // Замыкаем контур
+
     points_l_slam2[0] = {landmarks_slam[1].first, landmarks_slam[1].second};
     points_l_slam2[1] = {landmarks_slam[1].first + POINT_SIZE,landmarks_slam[1].second};
     points_l_slam2[2] = {landmarks_slam[1].first + POINT_SIZE, landmarks_slam[1].second + POINT_SIZE};
     points_l_slam2[3] = {landmarks_slam[1].first, landmarks_slam[1].second + POINT_SIZE};
     points_l_slam2[4] = {landmarks_slam[1].first, landmarks_slam[1].second}; 
 
+
+   
+
     SDL_RenderDrawLines(renderer,points_l_slam1,5);
-    SDL_RenderDrawLines(renderer,points_l_slam2,5);
     
     // 1. Рисуем заполненный прямоугольник
     
