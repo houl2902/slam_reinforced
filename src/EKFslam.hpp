@@ -9,6 +9,7 @@ class EKFslam {
     MatrixOperations matrixOps;
     static const int STATE_SIZE = 3;
     static const int MAX_LANDMARKS = 10;
+    double curr_measurement[2];
     Matrix covariance_matrix;
     Matrix motion_noise;
     Matrix measurement_noise;

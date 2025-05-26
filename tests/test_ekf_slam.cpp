@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
 #include "/home/houl/slam_reinforced/src/EKFslam.hpp"
 //#include "/home/houl/slam_reinforced/src/MatrixFunctions.hpp"
+#include "/home/houl/slam_reinforced/src/GraphSLAM.hpp"
 #include <cmath>
 
 #define GTEST_BOX "[     cout ] "
@@ -22,6 +23,20 @@ protected:
     }
 
     std::unique_ptr<EKFslam> ekf;
+    
+};
+
+class GraphSLAMTest : public ::testing::Test {
+    protected:
+        void SetUp() override {
+            // Общая настройка для всех тестов (если нужна)
+        }
+    
+        void TearDown() override {
+            // Очистка после тестов (если нужна)
+        }
+    
+        GraphSLAM GraphSlam;
 };
 
     
@@ -199,6 +214,32 @@ TEST_F(EKFslamTest, UpdateMultipleLandmarks) {
     EXPECT_NEAR(ekf->state[6], 10.0, 0.2);  // landmark 1 y
 }
 
+TEST_F(GraphSLAMTest, ConvergenceTest) {
+    GraphSlam.history_poses_struct.push_back(new Pose(0, 0, 0, 0)); // pose_id=0
+    GraphSlam.history_poses_struct.push_back(new Pose(1, 1.1, 0.1, 0.1)); // pose_id=1 с небольшим шумом
+    // Добавляем соответствие pose_id -> индекс
+    GraphSlam.pose_id_to_index[0] = 0;
+    GraphSlam.pose_id_to_index[1] = 1;
+    // Добавляем ограничение одометрии (перемещение на 1 метр вперед)
+    GraphSlam.odometry_constraints.push_back(new OdometryConstraint(0, 1, 1, 0, 0));
+    
+    // Устанавливаем небольшие сигмы
+    GraphSlam.sigma_odom_x = 0.1;
+    GraphSlam.sigma_odom_y = 0.1;
+    GraphSlam.sigma_odom_theta = 0.1;
+    
+    //testing::internal::CaptureStdout();
+    GraphSlam.optimizeGraph(20);
+    //std::string output = testing::internal::GetCapturedStdout();
+    
+    // Проверяем, что было сообщение о сходимости
+    //EXPECT_TRUE(output.find("Сходимость достигнута") != std::string::npos);
+    
+    // Проверяем, что вторая поза скорректировалась к ожидаемому положению
+    EXPECT_NEAR(GraphSlam.history_poses_struct[1]->x, 1, 0.01);
+    EXPECT_NEAR(GraphSlam.history_poses_struct[1]->y, 0, 0.01);
+    EXPECT_NEAR(GraphSlam.history_poses_struct[1]->theta, 0, 0.01);
+}
 int main(int argc, char **argv) {
     ::testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();

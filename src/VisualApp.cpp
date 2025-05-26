@@ -28,7 +28,10 @@ VisualApp::VisualApp() {
     noise_trail;
     landmarks;
     landmarks_slam;
+
+    history_poses_struct;
     logger = NULL;
+
 }
 
 
@@ -72,14 +75,13 @@ bool VisualApp::OnInit() {
     return true;
 }
 
-int VisualApp::OnExecute(EKFslam* slam_obj) {
+int VisualApp::OnExecute(EKFslam* slam_obj, GraphSLAM* graph_slam_obj) {
     if(VisualApp::OnInit() == false) {
         return -1;
     }
     SDL_Event Event;
     pointX = WINDOW_WIDTH / 2 - POINT_SIZE / 2;
     pointY = WINDOW_HEIGHT / 2 - POINT_SIZE / 2;
-    int count = 0;
     landmarks.push_back({300,300});
     slam_obj->addLandmark(300.0,300.0);
     //slam_obj->addLandmark(350.0,400.0);
@@ -88,21 +90,15 @@ int VisualApp::OnExecute(EKFslam* slam_obj) {
         while(SDL_PollEvent(&Event)) {
             VisualApp::OnEvent(&Event);
         }
-
-        VisualApp::OnLoop(slam_obj);
+        VisualApp::OnLoop(slam_obj,graph_slam_obj);
         VisualApp::OnRender();
-        count++;
-        // if (count>30){
-        //     running = false;
-        // }
-        
     }
  
     VisualApp::OnCleanup();
  
     return 0;
 }
-void VisualApp::OnLoop(EKFslam* slam_obj){
+void VisualApp::OnLoop(EKFslam* slam_obj, GraphSLAM* graph_slam_obj){
     // Обработка нажатий клавиш
     const Uint8* keys = SDL_GetKeyboardState(NULL);
 
@@ -131,10 +127,14 @@ void VisualApp::OnLoop(EKFslam* slam_obj){
         rotation -= rotationSpeed;
         control[1] = -rotationSpeed*M_PI / 180.0;
     } 
-   
+
     rotation = std::fmod(rotation, 360.0);
     if (rotation > 180.0) rotation -= 360.0;
     if (rotation < -180.0) rotation += 360.0;
+    //double distance = std::hypot(virtual_pos_X, virtual_pos_Y);
+
+   
+
     double logger_array_green[3] = {virtual_pos_X,virtual_pos_Y,rotation};
     logger->writeMatrixCoords(logger_array_green,"greenVector.txt");
     double distance = sqrt((300-virtual_pos_X) * (300-virtual_pos_X) + (300-virtual_pos_Y) * (300-virtual_pos_Y));
@@ -143,21 +143,41 @@ void VisualApp::OnLoop(EKFslam* slam_obj){
     //double angle = std::atan2(virtual_pos_Y, virtual_pos_X)
 
     slam_obj->predict(control);
-
-    double measurements[2] = {distance,angle};
-    std::cout << "=================" << std::endl;
-    std::cout << measurements[0] << std::endl;
-    std::cout << measurements[1] << std::endl;
-    std::cout << "=================" << std::endl;
-    if (!std::isnan(measurements[0]) && !std::isnan(measurements[1])){
-        slam_obj->update(measurements,0);
-    }
     
-    logger->writeMatrixCoords(slam_obj->state,"yellowVector.txt");
+    for (int i = 0; i<landmarks.size(); i++){
+      std::cout << "=================" << std::endl;
+      double distance = sqrt((landmarks[i].first-virtual_pos_X) * (landmarks[i].first-virtual_pos_X) + (landmarks[i].second-virtual_pos_Y) * (landmarks[i].second-virtual_pos_Y));
+      if (distance < 1e-10) distance = 1e-10;
+      double angle = atan2(landmarks[i].second-virtual_pos_Y,landmarks[i].first-virtual_pos_X) - rotation*M_PI / 180.0;
+      double measurements[2] = {distance,angle};
+    //   std::cout << "=================" << std::endl;
+    //   std::cout << "MESUREMENT" << std::endl;
+    //   std::cout << measurements[0] << std::endl;
+    //   std::cout << measurements[1] << std::endl;
+    //   std::cout << "=================" << std::endl;
+      if (!std::isnan(measurements[0]) && !std::isnan(measurements[1])){
+        slam_obj->update(measurements,i);
+      }
+    //   std::cout << "=================" << std::endl;
+    //   std::cout << "currMESUREMENT" << std::endl;
+    //   std::cout << slam_obj->curr_measurement[0] << std::endl;
+    //   std::cout << slam_obj->curr_measurement[1] << std::endl;
+    //   std::cout << "=================" << std::endl;
+    }
+    //double angle = std::atan2(virtual_pos_Y, virtual_pos_X)
+    
+
     slam_virtual_pos_X = slam_obj->state[0];
     slam_virtual_pos_Y = slam_obj->state[1];
     slam_rotation = slam_obj->state[2];
+
+    graph_slam_obj->addPose(slam_obj->state, slam_obj->curr_measurement);
+    history_poses_struct = graph_slam_obj->history_poses_struct;
+
+    logger->writeMatrixCoords(slam_obj->state,"yellowVector.txt");
+    
    
+
     // Ограничение перемещения точки в пределах окна
     if (rotation > 360) rotation -= 360;
     if (rotation < 0) rotation += 360;
@@ -170,6 +190,11 @@ void VisualApp::OnLoop(EKFslam* slam_obj){
     landmarks_slam.push_back({static_cast<int>(slam_obj->state[5]),static_cast<int>(slam_obj->state[6])});
     pointX = static_cast<int>(virtual_pos_X);
     pointY = static_cast<int>(virtual_pos_Y);
+
+    if (graph_slam_obj->odometry_constraints.size() > 3) { // Изменено условие
+        graph_slam_obj->optimizeGraph(15);
+    }
+    
     // Добавление точки в трек
     if (!trail.empty()) {
         auto& last = trail.back();
@@ -207,8 +232,6 @@ void VisualApp::OnLoop(EKFslam* slam_obj){
     } else {
         noise_trail.push_back({noisePointX_int + POINT_SIZE/2, noisePointY_int + POINT_SIZE/2});
     };
-
-
 };
 
 void VisualApp::OnRender() {
@@ -225,7 +248,19 @@ void VisualApp::OnRender() {
     }
 
     
-    
+    for (Pose* pose : history_poses_struct){
+        SDL_Point points_tringle[4];
+        int graph_point_X = static_cast<int>(pose->x);
+        int graph_point_Y = static_cast<int>(pose->y);
+        // std::cout<< graph_point_X << std::endl;
+        // std::cout<< history_poses_struct.size() << std::endl;
+        // std::cout<< graph_point_Y << std::endl;
+        points_tringle[0] = {graph_point_X,graph_point_Y};
+        points_tringle[1] = {graph_point_X+POINT_SIZE,graph_point_Y+POINT_SIZE};
+        points_tringle[2] = {graph_point_X-POINT_SIZE,graph_point_Y+POINT_SIZE};
+        points_tringle[3] = {graph_point_X,graph_point_Y};
+        SDL_RenderDrawLines(renderer,points_tringle,4);
+    }
     SDL_Point points[5];
     points[0] = {pointX, pointY};
     points[1] = {pointX + POINT_SIZE,pointY};
@@ -249,11 +284,11 @@ void VisualApp::OnRender() {
         points_l[2] = {landmark.first  + POINT_SIZE, landmark.second  + POINT_SIZE};
         points_l[3] = {landmark.first, landmark.second + POINT_SIZE};
         points_l[4] = {landmark.first, landmark.second}; // Замыкаем контур
-        std::cout << "=================" << std::endl;
-        std::cout << "LANDMARK GREEN" << std::endl;
-        std::cout << landmark.first << std::endl;
-        std::cout << landmark.second << std::endl;
-        std::cout << "=================" << std::endl;
+        // std::cout << "=================" << std::endl;
+        // std::cout << "LANDMARK GREEN" << std::endl;
+        // std::cout << landmark.first << std::endl;
+        // std::cout << landmark.second << std::endl;
+        // std::cout << "=================" << std::endl;
         SDL_RenderDrawLines(renderer,points_l,5);
         
     }
@@ -267,7 +302,16 @@ void VisualApp::OnRender() {
     points_l_slam1[2] = {landmarks_slam[0].first + POINT_SIZE, landmarks_slam[0].second + POINT_SIZE};
     points_l_slam1[3] = {landmarks_slam[0].first, landmarks_slam[0].second + POINT_SIZE};
     points_l_slam1[4] = {landmarks_slam[0].first, landmarks_slam[0].second}; // Замыкаем контур
+
+    points_l_slam2[0] = {landmarks_slam[1].first, landmarks_slam[1].second};
+    points_l_slam2[1] = {landmarks_slam[1].first + POINT_SIZE,landmarks_slam[1].second};
+    points_l_slam2[2] = {landmarks_slam[1].first + POINT_SIZE, landmarks_slam[1].second + POINT_SIZE};
+    points_l_slam2[3] = {landmarks_slam[1].first, landmarks_slam[1].second + POINT_SIZE};
+    points_l_slam2[4] = {landmarks_slam[1].first, landmarks_slam[1].second}; 
+
+
    
+
     SDL_RenderDrawLines(renderer,points_l_slam1,5);
     
     // 1. Рисуем заполненный прямоугольник
@@ -335,11 +379,6 @@ SDL_Point VisualApp::rotate_point(SDL_Point point, SDL_Point center, double angl
     
     double rotatedX = translatedX * cosA - translatedY * sinA;
     double rotatedY = translatedX * sinA + translatedY * cosA;
-    //points after move
-    // std::cout << "==================" << std::endl;
-    // std::cout << rotatedX << std::endl;
-    // std::cout << rotatedY << std::endl;
-    // std::cout << "==================" << std::endl;
     
     // Возвращаем точку в исходную систему координат
     return SDL_Point{

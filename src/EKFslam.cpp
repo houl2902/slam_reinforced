@@ -11,6 +11,7 @@ EKFslam::EKFslam() : motion_noise(3, 3), covariance_matrix(3, 3), measurement_no
     noisy_control[0] = 100;
     noisy_control[1] = 100;
     num_landmarks = 0;
+    curr_measurement[2];
     // Инициализация ковариационной матрицы
     for (int i = 0; i < STATE_SIZE; ++i) {
         for (int j = 0; j < STATE_SIZE; ++j) {
@@ -56,6 +57,7 @@ void EKFslam::makeNoisyMeasurement(double* measurement) {
     motion_noise(2,2) = pow(ang_vel_noise_std, 2); // σ²_w
     measurement[0] = noisy_measurement_1;
     measurement[1] = noisy_measurement_2;
+    
 }
 
 void EKFslam::addLandmark(double x, double y) {
@@ -67,9 +69,9 @@ void EKFslam::addLandmark(double x, double y) {
     int idx = 3 + 2*num_landmarks-2;
     state[idx] = x;
     state[idx+1] = y;
-    std::cout << "RESIZE" << std::endl;
-    std::cout << idx << std::endl;
-    std::cout << 3 + 2*num_landmarks << std::endl;
+    // std::cout << "RESIZE" << std::endl;
+    // std::cout << idx << std::endl;
+    // std::cout << 3 + 2*num_landmarks << std::endl;
 
     covariance_matrix.resize(3 + 2*num_landmarks,3 + 2*num_landmarks);
     
@@ -108,12 +110,12 @@ void EKFslam::predict(double control[2]) {
     state[2] += w * dt;
     normalizeAngle(state[2]);
 
-    std::cout << "STATE "<<std::endl;
-    std::cout << v << std::endl;
-    std::cout << w << std::endl;
-    std::cout << v * std::cos(state[2])  << std::endl;
-    std::cout << v * std::sin(state[2]) << std::endl;
-    std::cout << state[2] << std::endl;
+    // std::cout << "STATE "<<std::endl;
+    // std::cout << v << std::endl;
+    // std::cout << w << std::endl;
+    // std::cout << v * std::cos(state[2])  << std::endl;
+    // std::cout << v * std::sin(state[2]) << std::endl;
+    // std::cout << state[2] << std::endl;
     // Матрица Якоби F (только для робота)
     Matrix F(3 + 2*num_landmarks, 3 + 2*num_landmarks);
     for (int i = 0; i < F.getSize()[0]; ++i) {
@@ -155,15 +157,18 @@ void EKFslam::update(double measurement[2],int landmark_id) {
     if (landmark_id < 0 || landmark_id >= num_landmarks) {
         throw std::invalid_argument("Invalid landmark ID");
     }
-    std::cout << "MEASUREMENT BEFORE" << std::endl;
-    std::cout << measurement[0] << std::endl;
-    std::cout << measurement[1] << std::endl;
+    // std::cout << "MEASUREMENT BEFORE" << std::endl;
+    // std::cout << measurement[0] << std::endl;
+    // std::cout << measurement[1] << std::endl;
 
     makeNoisyMeasurement(measurement);
+    curr_measurement[0] = measurement[0];
+    curr_measurement[1] = measurement[1];
+    
 
-    std::cout << "MEASUREMENT AFTER" << std::endl;
-    std::cout << measurement[0] << std::endl;
-    std::cout << measurement[1] << std::endl;
+    // std::cout << "MEASUREMENT AFTER" << std::endl;
+    // std::cout << curr_measurement[0] << std::endl;
+    // std::cout << curr_measurement[1] << std::endl;
 
     // 2. Получение текущего положения робота и landmark
     const double rx = state[0];
@@ -228,7 +233,7 @@ void EKFslam::update(double measurement[2],int landmark_id) {
     Matrix HT(3 + 2 * num_landmarks, 2);
     matrixOps.matrixTranspose(H, HT);
     Matrix S(2, 2);
-    matrixOps.matrixShow(HT);
+    //matrixOps.matrixShow(HT);
     Matrix temp(2, 3 + 2 * num_landmarks);
     matrixOps.matrixMultiply(H, covariance_matrix, temp);
     // std::cout << "ABOBA" << std::endl;
