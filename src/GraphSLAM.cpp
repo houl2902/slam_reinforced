@@ -20,7 +20,7 @@ void GraphSLAM::addPose(double* current_pos,double* measurements){
     double dy = new_pose->y - prev_pose->y;
     double length = sqrt(dx*dx + dy*dy);
     
-    if (length>0.1) {
+    if (length>25) {
       history_poses_struct.push_back(new_pose);
       pose_id_to_index[new_pose->id] = history_poses_struct.size() - 1;
       
@@ -126,7 +126,7 @@ Pose* GraphSLAM::detectLoop(double* current_pos){
         double dist_xy = sqrt(dx*dx + dy*dy);
         std::cout << "LOOP MAYBE HERE" << std::endl;
         std::cout << dist_xy << std::endl;
-        if (dist_xy < 0.5){
+        if (dist_xy < 8){
             std::cout << "LOOP HERE" << std::endl;
             std::cout << history_poses_struct.size() << std::endl;
             return prev_pose;

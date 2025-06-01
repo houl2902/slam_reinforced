@@ -1,13 +1,29 @@
-#include <cmath>
-#include <limits>
-#include <stdexcept>
+
 #include "MatrixFunctions.hpp"
 
 constexpr double EPSILON = 1e-10;
 constexpr double REPLACEMENT_VALUE = 1e-10; // Значение для замены проблемных чисел
 constexpr double REPLACEMENT_VALUE_MAX = 1e+10; // Значение для замены проблемных чисел
 
+MatrixOperations::MatrixOperations(){
+    MatixFile.open("Matrix.txt");
+    MatixFile.close();
+}
 
+
+void MatrixOperations::addMatrixToFile(Matrix& mat){
+    MatixFile.open("Matrix.txt",std::ios::app);
+    const int* size1 = mat.getSize();
+    for (int i = 0; i < size1[0]; ++i) {
+        for (int j = 0; j < size1[1]; ++j) {
+            std::string matrix_logs = std::to_string(mat(i,j)) + " ";
+        }
+    }
+};
+
+void MatrixOperations::waitMatrixFromFile(Matrix& result){
+    return;
+};
 
 inline bool MatrixOperations::isProblematic(double val) {
     return std::isnan(val) || std::isinf(val) || fabs(val) > std::numeric_limits<double>::max() / 2.0;

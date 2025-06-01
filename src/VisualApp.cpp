@@ -28,9 +28,9 @@ VisualApp::VisualApp() {
     noise_trail;
     landmarks;
     landmarks_slam;
-
     history_poses_struct;
     logger = NULL;
+    //input_file.open("input_commands.txt");
 
 }
 
@@ -48,20 +48,17 @@ bool VisualApp::OnInit() {
     if(SDL_Init(SDL_INIT_VIDEO) < 0) {
         std::cout << "Error init: " << SDL_GetError()  << std::endl;
 		system("pause");
-        return false;
+        return 1;
     }
     
 
     window = SDL_CreateWindow( "SLAM", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, WINDOW_HEIGHT, WINDOW_WIDTH, SDL_WINDOW_SHOWN );
-    if( !window) {
+    if(!window) {
         std::cout << "Error creating window: " << SDL_GetError()  << std::endl;
 		system("pause");
 		// End the program
 		return 1;
     }
-    std::cout << "LOG Created Window";
-
-
 
     renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
     if (!renderer) {
@@ -71,7 +68,7 @@ bool VisualApp::OnInit() {
         return 1;
     }
 
-    logger = new Logger({"greenVector.txt","yellowVector.txt","redVector.txt"});
+    logger = new Logger({"greenVector.txt","yellowVector.txt","redVector.txt","Time.txt"});
     return true;
 }
 
@@ -80,35 +77,74 @@ int VisualApp::OnExecute(EKFslam* slam_obj, GraphSLAM* graph_slam_obj) {
         return -1;
     }
     SDL_Event Event;
+
     pointX = WINDOW_WIDTH / 2 - POINT_SIZE / 2;
     pointY = WINDOW_HEIGHT / 2 - POINT_SIZE / 2;
     landmarks.push_back({300,300});
-    slam_obj->addLandmark(300.0,300.0);
-    slam_obj->addLandmark(350.0,400.0);
     landmarks.push_back({350,400});
+    landmarks.push_back({200,300});
+    landmarks.push_back({350,450});
+    landmarks.push_back({500,300});
+    // landmarks.push_back({500,300});
+    // landmarks.push_back({350,600});
+    // landmarks.push_back({100,300});
+    //landmarks.push_back({350,200});
+    //landmarks.push_back({100,500});
+    //landmarks.push_back({380,410});
+    slam_obj->addLandmark(300,300);
+    slam_obj->addLandmark(350,400);
+    slam_obj->addLandmark(200,300);
+    slam_obj->addLandmark(350,450);
+    slam_obj->addLandmark(500,300);
+    // slam_obj->addLandmark(350,600);
+    // slam_obj->addLandmark(100,300);
+    //slam_obj->addLandmark(350,200);
+    //slam_obj->addLandmark(100,500);
+    //slam_obj->addLandmark(380,410);
+   //#ifdef SDL_OFF
+    // Режим файлового ввода
+    
+    // if (!input_file.is_open()) {
+    //     std::cerr << "Error opening input file" << std::endl;
+    //     return -1;
+    // }
+    // #endif
+
     while(running) {
+
+        // Обработка событий SDL
+        // #else
+        //Чтение команд из файла
         while(SDL_PollEvent(&Event)) {
             VisualApp::OnEvent(&Event);
         }
-        VisualApp::OnLoop(slam_obj,graph_slam_obj);
-        VisualApp::OnRender();
+        // std::string command;
+        // if (!(input_file >> command)) {
+        //     running = false; // Конец файла
+        //     continue;
+        // }
+        // #endif
+
+        OnLoop(slam_obj, graph_slam_obj);
+        
+        
+        OnRender();
+        
     }
- 
-    VisualApp::OnCleanup();
- 
+
+    OnCleanup();
     return 0;
 }
 void VisualApp::OnLoop(EKFslam* slam_obj, GraphSLAM* graph_slam_obj){
     // Обработка нажатий клавиш
-    const Uint8* keys = SDL_GetKeyboardState(NULL);
-
     double x_move_offset = cos(rotation * M_PI / 180.0)*MOVE_SPEED;
     double y_move_offset = sin(rotation * M_PI / 180.0)*MOVE_SPEED;
-    
 
     // 2. Улучшенные измерения (добавить проверку деления на ноль)
     
     double control[2] = {0,0};
+    // Обработка клавиатуры (режим SDL)
+    const Uint8* keys = SDL_GetKeyboardState(NULL);
     if (keys[SDL_SCANCODE_W]) {
         virtual_pos_X-=x_move_offset;
         virtual_pos_Y-=y_move_offset;
@@ -393,4 +429,6 @@ void VisualApp::OnCleanup() {
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
     SDL_Quit();
+    if (logger) delete logger;
+    //input_file.close();
 }

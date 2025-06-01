@@ -48,9 +48,9 @@ void EKFslam::makeNoisyControl(double* control) {
 
 void EKFslam::makeNoisyMeasurement(double* measurement) {
     std::normal_distribution<double> vel_noise(0.0, 0.1);
-    std::normal_distribution<double> ang_vel_noise(0.0, 0.004);
+    std::normal_distribution<double> ang_vel_noise(0.0, 0.4);
     
-    double noisy_measurement_1 = measurement[0] + vel_noise(noise_generator);
+    double noisy_measurement_1 = measurement[0] + vel_noise(noise_generator);//vel_noise(noise_generator);
     double noisy_measurement_2 = measurement[1] + ang_vel_noise(noise_generator);
     motion_noise(0,0) = pow(vel_noise_std, 2);  // σ²_v
     motion_noise(1,1) = pow(vel_noise_std, 2);  // σ²_v
@@ -236,16 +236,6 @@ void EKFslam::update(double measurement[2],int landmark_id) {
     //matrixOps.matrixShow(HT);
     Matrix temp(2, 3 + 2 * num_landmarks);
     matrixOps.matrixMultiply(H, covariance_matrix, temp);
-    // std::cout << "ABOBA" << std::endl;
-    // std::cout << z_pred[0] << std::endl;
-    // std::cout << z_pred[1] << std::endl;
-    // std::cout << measurement[0] << std::endl;
-    // std::cout << measurement[1] << std::endl;
-    // std::cout << dz[1] << std::endl;
-    // std::cout << dz[0] << std::endl;
-    // std::cout << state[3]  << std::endl;
-    // std::cout << state[4]  << std::endl;
-    // std::cout << "ABOBA2" << std::endl;
     matrixOps.matrixMultiply(temp, HT, S);
     Matrix S2(2, 2);
     matrixOps.matrixAdd(S, measurement_noise, S2);
