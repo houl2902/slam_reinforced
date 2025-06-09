@@ -14,8 +14,8 @@ class MatrixOperations {
    public:
    MatrixOperations();
    std::ofstream MatixFile;
-   inline bool isProblematic(double val);
-   inline double safeValue(double val);
+   inline bool isProblematic(float val);
+   inline float safeValue(float val);
    void blockAdd(Matrix&, int, int, Matrix&);
    void matrixMultiply(const Matrix& mat1, const Matrix& mat2, Matrix& result);
    void matrixTranspose( const Matrix& mat1, Matrix& result);

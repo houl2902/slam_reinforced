@@ -42,6 +42,8 @@ class VisualApp {
         Logger* logger;
         std::vector<std::pair<int,int>> trail;
         std::vector<std::pair<int,int>> slam_trail;
+        std::vector<std::pair<double,double>> trail2;
+        std::vector<std::pair<double,double>> slam_trail2;
         std::vector<std::pair<int,int>> noise_trail;
         std::vector<std::pair<int,int>> landmarks;
         std::vector<std::pair<int,int>>  landmarks_slam;

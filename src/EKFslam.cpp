@@ -135,7 +135,7 @@ void EKFslam::predict(double control[2]) {
     for (int i = 0; i < 3; ++i) {
         covariance_matrix(i, i) += motion_noise(i, i);
     }
-
+    matrixOps.addMatrixToFile(covariance_matrix);
     // std::cout << "После predict:" << std::endl;
     // std::cout << "Состояние робота: [" 
     //           << state[0] << ", " << state[1] << ", " << state[2] << "]" << std::endl;

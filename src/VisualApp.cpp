@@ -82,9 +82,9 @@ int VisualApp::OnExecute(EKFslam* slam_obj, GraphSLAM* graph_slam_obj) {
     pointY = WINDOW_HEIGHT / 2 - POINT_SIZE / 2;
     landmarks.push_back({300,300});
     landmarks.push_back({350,400});
-    landmarks.push_back({200,300});
-    landmarks.push_back({350,450});
-    landmarks.push_back({500,300});
+    // landmarks.push_back({200,300});
+    // landmarks.push_back({350,450});
+    // landmarks.push_back({500,300});
     // landmarks.push_back({500,300});
     // landmarks.push_back({350,600});
     // landmarks.push_back({100,300});
@@ -93,9 +93,9 @@ int VisualApp::OnExecute(EKFslam* slam_obj, GraphSLAM* graph_slam_obj) {
     //landmarks.push_back({380,410});
     slam_obj->addLandmark(300,300);
     slam_obj->addLandmark(350,400);
-    slam_obj->addLandmark(200,300);
-    slam_obj->addLandmark(350,450);
-    slam_obj->addLandmark(500,300);
+    // slam_obj->addLandmark(200,300);
+    // slam_obj->addLandmark(350,450);
+    // slam_obj->addLandmark(500,300);
     // slam_obj->addLandmark(350,600);
     // slam_obj->addLandmark(100,300);
     //slam_obj->addLandmark(350,200);
@@ -135,6 +135,64 @@ int VisualApp::OnExecute(EKFslam* slam_obj, GraphSLAM* graph_slam_obj) {
     OnCleanup();
     return 0;
 }
+
+// Функция для расчета среднеквадратичного отклонения (стандартного отклонения) для набора чисел
+double calculate_std_deviation(const std::vector<double>& values) {
+    // Если набор пуст, то отклонение = 0
+    if (values.empty()) {
+        return 0.0;
+    }
+
+    // 1. Вычисляем среднее арифметическое
+    double mean = 0.0;
+    for (const double& value : values) {
+        mean += value;
+    }
+    mean /= values.size();
+
+    // 2. Вычисляем сумму квадратов отклонений от среднего
+    double sum_of_squared_differences = 0.0;
+    for (const double& value : values) {
+        sum_of_squared_differences += pow(value - mean, 2);
+    }
+
+    // 3. Делим на количество элементов и извлекаем квадратный корень
+    return sqrt(sum_of_squared_differences / values.size());
+}
+
+double calculate_trajectory_std_deviation( std::vector<std::pair<double, double>>& trajectory1,  std::vector<std::pair<double, double>>& trajectory2) {
+    // Проверка на размерность траекторий
+    // if (trajectory1.size() != trajectory2.size()) {
+    //     return -1; // или выбросить исключение, в зависимости от требований
+    // }
+
+    // Если траектория пуста, то отклонение = 0
+    if (trajectory1.empty()) {
+        return 0.0;
+    }
+
+    // Расчет среднеквадратичного отклонения для каждой координаты
+    std::vector<double> x_differences;
+    std::vector<double> y_differences;
+
+    for (size_t i = 0; i < trajectory1.size(); ++i) {
+        // Вычисляем разницу по координатам X и Y
+        x_differences.push_back(trajectory1[i].first - trajectory2[i].first);
+        y_differences.push_back(trajectory1[i].second - trajectory2[i].second);
+    }
+
+    // Расчет среднеквадратичного отклонения для каждой координаты
+    double x_std_deviation = calculate_std_deviation(x_differences);
+    double y_std_deviation = calculate_std_deviation(y_differences);
+
+    // Среднеквадратичное отклонение для траекторий - корень из суммы квадратов
+    // отклонений по обеим координатам
+    std::cout << x_std_deviation << " " << y_std_deviation << std::endl;
+    return sqrt(x_std_deviation * x_std_deviation + y_std_deviation * y_std_deviation);
+}
+
+
+
 void VisualApp::OnLoop(EKFslam* slam_obj, GraphSLAM* graph_slam_obj){
     // Обработка нажатий клавиш
     double x_move_offset = cos(rotation * M_PI / 180.0)*MOVE_SPEED;
@@ -181,7 +239,7 @@ void VisualApp::OnLoop(EKFslam* slam_obj, GraphSLAM* graph_slam_obj){
     slam_obj->predict(control);
     
     for (int i = 0; i<landmarks.size(); i++){
-      std::cout << "=================" << std::endl;
+      //std::cout << "=================" << std::endl;
       double distance = sqrt((landmarks[i].first-virtual_pos_X) * (landmarks[i].first-virtual_pos_X) + (landmarks[i].second-virtual_pos_Y) * (landmarks[i].second-virtual_pos_Y));
       if (distance < 1e-10) distance = 1e-10;
       double angle = atan2(landmarks[i].second-virtual_pos_Y,landmarks[i].first-virtual_pos_X) - rotation*M_PI / 180.0;
@@ -207,12 +265,20 @@ void VisualApp::OnLoop(EKFslam* slam_obj, GraphSLAM* graph_slam_obj){
     slam_virtual_pos_Y = slam_obj->state[1];
     slam_rotation = slam_obj->state[2];
 
-    graph_slam_obj->addPose(slam_obj->state, slam_obj->curr_measurement);
-    history_poses_struct = graph_slam_obj->history_poses_struct;
+    Pose* new_pose = graph_slam_obj->addPose(slam_obj->state, slam_obj->curr_measurement);
+    
 
     logger->writeMatrixCoords(slam_obj->state,"yellowVector.txt");
-    
-   
+    Pose* loop_pose_candidate = graph_slam_obj->detectLoop(slam_obj->state);
+    if (loop_pose_candidate != nullptr && new_pose!=nullptr) {
+            std::cout << "Обнаружен цикл! Текущая поза " << new_pose->id << " совпадает с исторической позой " << loop_pose_candidate->id << std::endl;
+            graph_slam_obj->addLoopClosureConstraint(new_pose->id, loop_pose_candidate->id);
+    }
+
+    if (graph_slam_obj->odometry_constraints.size() > 3) {
+          graph_slam_obj->optimizeGraph(15);
+    }
+    history_poses_struct = graph_slam_obj->history_poses_struct;
 
     // Ограничение перемещения точки в пределах окна
     if (rotation > 360) rotation -= 360;
@@ -224,8 +290,6 @@ void VisualApp::OnLoop(EKFslam* slam_obj, GraphSLAM* graph_slam_obj){
     pointY = static_cast<int>(virtual_pos_Y);
     landmarks_slam.push_back({static_cast<int>(slam_obj->state[3]),static_cast<int>(slam_obj->state[4])});
     landmarks_slam.push_back({static_cast<int>(slam_obj->state[5]),static_cast<int>(slam_obj->state[6])});
-    pointX = static_cast<int>(virtual_pos_X);
-    pointY = static_cast<int>(virtual_pos_Y);
 
     if (graph_slam_obj->odometry_constraints.size() > 3) { // Изменено условие
         graph_slam_obj->optimizeGraph(15);
@@ -240,6 +304,16 @@ void VisualApp::OnLoop(EKFslam* slam_obj, GraphSLAM* graph_slam_obj){
     } else {
         trail.push_back({pointX + POINT_SIZE/2, pointY + POINT_SIZE/2});
     };
+    // Добавление точки в трек
+    if (!trail2.empty()) {
+        auto& last = trail2.back();
+        if (last.first != virtual_pos_X || last.second != virtual_pos_Y) {
+            trail2.push_back({virtual_pos_X, virtual_pos_Y});
+        }
+    } else {
+        trail2.push_back({virtual_pos_X, virtual_pos_Y});
+    };
+
 
     int slam_pointX = static_cast<int>(slam_virtual_pos_X);
     int slam_pointY = static_cast<int>(slam_virtual_pos_Y);
@@ -250,6 +324,15 @@ void VisualApp::OnLoop(EKFslam* slam_obj, GraphSLAM* graph_slam_obj){
         }
     } else {
         slam_trail.push_back({slam_pointX + POINT_SIZE/2, slam_pointY + POINT_SIZE/2});
+    };
+
+    if (!slam_trail2.empty()) {
+        auto& last = slam_trail2.back();
+        if (last.first != slam_virtual_pos_X || last.second != slam_virtual_pos_Y) {
+            slam_trail2.push_back({slam_virtual_pos_X, slam_virtual_pos_Y});
+        }
+    } else {
+        slam_trail2.push_back({slam_virtual_pos_X, slam_virtual_pos_Y});
     };
     noise_rotation+=slam_obj->noisy_control[1];
     slam_obj->normalizeAngle(noise_rotation);
@@ -268,6 +351,11 @@ void VisualApp::OnLoop(EKFslam* slam_obj, GraphSLAM* graph_slam_obj){
     } else {
         noise_trail.push_back({noisePointX_int + POINT_SIZE/2, noisePointY_int + POINT_SIZE/2});
     };
+
+    double res = calculate_trajectory_std_deviation(slam_trail2,trail2 );
+    std::cout << "RMA: ";
+    std::cout << res << std::endl;
+
 };
 
 void VisualApp::OnRender() {

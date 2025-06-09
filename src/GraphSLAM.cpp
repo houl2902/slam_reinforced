@@ -120,8 +120,6 @@ Pose* GraphSLAM::detectLoop(double* current_pos){
         double dx = current_pos[0] - prev_pose->x;
         double dy = current_pos[1] - prev_pose->y;
         double dist_xy = sqrt(dx*dx + dy*dy);
-        std::cout << "LOOP MAYBE HERE" << std::endl;
-        std::cout << dist_xy << std::endl;
         if (dist_xy < 8){
             std::cout << "LOOP HERE" << std::endl;
             std::cout << history_poses_struct.size() << std::endl;

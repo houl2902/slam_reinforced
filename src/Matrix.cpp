@@ -3,13 +3,13 @@
 Matrix::Matrix(int size[2]){
     sizeMat[0] = size[0];
     sizeMat[1] = size[1];
-    matPointer = new double[sizeMat[0] * sizeMat[1]]();
+    matPointer = new float[sizeMat[0] * sizeMat[1]]();
 };
 
 Matrix::Matrix(int x, int y){
     sizeMat[0] = x;
     sizeMat[1] = y;
-    matPointer = new double[x * y]();
+    matPointer = new float[x * y]();
 };
 int* Matrix::getSize(){
     return sizeMat;
@@ -20,7 +20,7 @@ const int* Matrix::getSize() const {
 };
 
 
-double* Matrix::getMatrix(){
+float* Matrix::getMatrix(){
     return matPointer;
 };
 
@@ -28,7 +28,7 @@ Matrix::~Matrix() {
     delete[] matPointer;
 }
 
-double& Matrix::operator() (int i, int j) {
+float& Matrix::operator() (int i, int j) {
     if (i < 0 || i >= sizeMat[0] || j < 0 || j >= sizeMat[1]) {
         std::cout<<"Индексы выходят за пределы матрицы!";
         throw;
@@ -36,7 +36,7 @@ double& Matrix::operator() (int i, int j) {
     return matPointer[i * sizeMat[1] + j];
 };
 
-const double& Matrix::operator() (int i, int j) const {
+const float& Matrix::operator() (int i, int j) const {
     if (i < 0 || i >= sizeMat[0] || j < 0 || j >= sizeMat[1]) {
         std::cout<<"Индексы выходят за пределы матрицы!";
         throw;
@@ -51,7 +51,7 @@ void Matrix::resize(int newRows, int newCols) {
     }
 
     // Создаем новый массив
-    double* newMat = new double[newRows * newCols]();
+    float* newMat = new float[newRows * newCols]();
     
     // Копируем данные из старого массива в новый
     int minRows = std::min(sizeMat[0], newRows);
@@ -76,7 +76,7 @@ void Matrix::resize(int newRows, int newCols) {
 Matrix::Matrix(const Matrix& other) {
     sizeMat[0] = other.sizeMat[0];
     sizeMat[1] = other.sizeMat[1];
-    matPointer = new double[sizeMat[0] * sizeMat[1]];
+    matPointer = new float[sizeMat[0] * sizeMat[1]];
     std::copy(other.matPointer, other.matPointer + sizeMat[0] * sizeMat[1], matPointer);
 }
 
@@ -85,7 +85,7 @@ Matrix& Matrix::operator=(const Matrix& other) {
         delete[] matPointer;
         sizeMat[0] = other.sizeMat[0];
         sizeMat[1] = other.sizeMat[1];
-        matPointer = new double[sizeMat[0] * sizeMat[1]];
+        matPointer = new float[sizeMat[0] * sizeMat[1]];
         std::copy(other.matPointer, other.matPointer + sizeMat[0] * sizeMat[1], matPointer);
     }
     return *this;

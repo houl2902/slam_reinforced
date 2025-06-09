@@ -3,7 +3,8 @@
 #endif
 #ifdef USE_PARALLEL
 #include "src/ParrallelApp.hpp"
-#else
+#endif
+#if (!defined(USE_SDL) && !defined(USE_PARALLEL))
 #include "src/App.hpp"
 #endif
 #include <iostream>
@@ -22,7 +23,8 @@ int main() {
     #endif
     #ifdef USE_PARALLEL
     ParrallelApp theApp;
-    #else
+    #endif
+    #if (!defined(USE_SDL) && !defined(USE_PARALLEL))
     App theApp;
     #endif
 
