@@ -36,6 +36,7 @@ bool App::OnInit() {
 }
 
 int App::OnExecute(EKFslam* slam_obj, GraphSLAM* graph_slam_obj) {
+    static std::chrono::high_resolution_clock::time_point start_time = std::chrono::high_resolution_clock::now();
     if(OnInit() == false) {
         return -1;
     }
@@ -44,25 +45,25 @@ int App::OnExecute(EKFslam* slam_obj, GraphSLAM* graph_slam_obj) {
     pointY = WINDOW_HEIGHT / 2 - POINT_SIZE / 2;
     landmarks.push_back({300,300});
     landmarks.push_back({350,400});
-    landmarks.push_back({200.0,300.0});
-    landmarks.push_back({350.0,450.0});
-    landmarks.push_back({500.0,300.0});
-    landmarks.push_back({500.0,300.0});
-    landmarks.push_back({350.0,600.0});
-    landmarks.push_back({100.0,300.0});
-    landmarks.push_back({350.0,200.0});
-    landmarks.push_back({100.0,500.0});
-    landmarks.push_back({380.0,410.0});
+    // landmarks.push_back({200.0,300.0});
+    // landmarks.push_back({350.0,450.0});
+    // landmarks.push_back({500.0,300.0});
+    // landmarks.push_back({500.0,300.0});
+    // landmarks.push_back({350.0,600.0});
+    // landmarks.push_back({100.0,300.0});
+    // landmarks.push_back({350.0,200.0});
+    // landmarks.push_back({100.0,500.0});
+    // landmarks.push_back({380.0,410.0});
     slam_obj->addLandmark(300.0,300.0);
     slam_obj->addLandmark(350.0,400.0);
-    slam_obj->addLandmark(200.0,300.0);
-    slam_obj->addLandmark(350.0,450.0);
-    slam_obj->addLandmark(500.0,300.0);
-    slam_obj->addLandmark(350.0,600.0);
-    slam_obj->addLandmark(100.0,300.0);
-    slam_obj->addLandmark(350.0,200.0);
-    slam_obj->addLandmark(100.0,500.0);
-    slam_obj->addLandmark(380.0,410.0);
+    // slam_obj->addLandmark(200.0,300.0);
+    // slam_obj->addLandmark(350.0,450.0);
+    // slam_obj->addLandmark(500.0,300.0);
+    // slam_obj->addLandmark(350.0,600.0);
+    // slam_obj->addLandmark(100.0,300.0);
+    // slam_obj->addLandmark(350.0,200.0);
+    // slam_obj->addLandmark(100.0,500.0);
+    // slam_obj->addLandmark(380.0,410.0);
     
 
     // #ifdef SDL_OFF
@@ -88,6 +89,10 @@ int App::OnExecute(EKFslam* slam_obj, GraphSLAM* graph_slam_obj) {
         
         
     }
+    auto end_time = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double> loop_elapsed = end_time - start_time ;
+    double loop_seconds = loop_elapsed.count();
+    logger->writeFloat(loop_seconds,"Time.txt");
     OnCleanup();
     return 0;
 }
@@ -186,7 +191,7 @@ void App::OnLoop(EKFslam* slam_obj, GraphSLAM* graph_slam_obj){
     noisePointY += sin(noise_rotation)*slam_obj->noisy_control[0];
     double logger_array_red[3] = {noisePointX,noisePointY,noise_rotation};
     logger->writeMatrixCoords(logger_array_red,"redVector.txt");
-    logger->writeFloat(loop_seconds,"Time.txt");
+    
 };
 
 void App::OnCleanup() {

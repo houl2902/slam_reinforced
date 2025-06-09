@@ -1,5 +1,8 @@
 #ifdef USE_SDL
 #include "src/VisualApp.hpp"
+#endif
+#ifdef USE_PARALLEL
+#include "src/ParrallelApp.hpp"
 #else
 #include "src/App.hpp"
 #endif
@@ -16,9 +19,13 @@ int main() {
     std::cout << "Start app2";
     #ifdef USE_SDL
     VisualApp theApp;
+    #endif
+    #ifdef USE_PARALLEL
+    ParrallelApp theApp;
     #else
     App theApp;
     #endif
+
     return theApp.OnExecute(&slam,&graph_slam);
    
 }

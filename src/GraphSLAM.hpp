@@ -182,7 +182,7 @@ class GraphSLAM
     double observation_noise = 0.05;
     int next_pose_id = 0;
     int next_landmark_id = 0;
-    void addPose(double* current_pos,double* measurements);
+    Pose* addPose(double* current_pos,double* measurements);
     void addPose(double x, double y, double theta);
     Pose* detectLoop(double* current_pos);
     void addLandmarkObservation(int pose_id, double range, double bearing);

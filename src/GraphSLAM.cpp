@@ -2,7 +2,7 @@
 
 
 
-void GraphSLAM::addPose(double* current_pos,double* measurements){
+Pose* GraphSLAM::addPose(double* current_pos,double* measurements){
     
     Pose* new_pose = new Pose(current_pos[0], current_pos[1], current_pos[2], next_pose_id++);
 
@@ -13,7 +13,7 @@ void GraphSLAM::addPose(double* current_pos,double* measurements){
         history_poses_struct.push_back(new_pose);
         pose_id_to_index[new_pose->id] = history_poses_struct.size() - 1;
         // history_poses.push_back(copy_pos);
-        return;
+        return new_pose;
     };
     const auto& prev_pose = history_poses_struct.back();
     double dx = new_pose->x - prev_pose->x;
@@ -41,17 +41,13 @@ void GraphSLAM::addPose(double* current_pos,double* measurements){
                 }
             }
         }
-        Pose* loop_pose_candidate = detectLoop(current_pos);
-        if (loop_pose_candidate != nullptr) {
-            std::cout << "Обнаружен цикл! Текущая поза " << new_pose->id << " совпадает с исторической позой " << loop_pose_candidate->id << std::endl;
-            addLoopClosureConstraint(new_pose->id, loop_pose_candidate->id);
-        }
+        
     } else {
         delete new_pose;
         next_pose_id--;
         //std::cout << "Поза слишком близко к предыдущей, не добавлена." << std::endl;
     }
-    return;
+    return new_pose;
 };
 
 
