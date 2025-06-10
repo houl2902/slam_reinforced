@@ -93,6 +93,14 @@ int App::OnExecute(EKFslam* slam_obj, GraphSLAM* graph_slam_obj) {
     std::chrono::duration<double> loop_elapsed = end_time - start_time ;
     double loop_seconds = loop_elapsed.count();
     logger->writeFloat(loop_seconds,"Time.txt");
+    // slam_obj->matrixOps.time_on_matix;
+    // graph_slam_obj->matrixOps.time_on_matix;
+    std::cout<<graph_slam_obj->matrixOps.counter << std::endl;
+    std::cout<<slam_obj->matrixOps.counter << std::endl;
+    std::cout<<slam_obj->matrixOps.time_on_matix << std::endl;
+    std::cout<<slam_obj->matrixOps.time_on_matix << std::endl;
+    logger->writeFloat(slam_obj->matrixOps.time_on_matix,"Time.txt");
+    logger->writeFloat(graph_slam_obj->matrixOps.time_on_matix,"Time.txt");
     OnCleanup();
     return 0;
 }

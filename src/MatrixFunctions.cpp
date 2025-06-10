@@ -54,7 +54,7 @@ inline float MatrixOperations::safeValue(float val) {
 void MatrixOperations::matrixMultiply(const Matrix& mat1, const Matrix& mat2, Matrix& result) {
     const int* size1 = mat1.getSize();
     const int* size2 = mat2.getSize();
-    
+    auto loop_start = std::chrono::high_resolution_clock::now();
     // Проверка размеров
     if (size1[1] != size2[0]) {
         throw std::invalid_argument("Matrix dimensions mismatch for multiplication");
@@ -104,6 +104,10 @@ void MatrixOperations::matrixMultiply(const Matrix& mat1, const Matrix& mat2, Ma
             result(i,j) = safeValue(sum);
         }
     }
+    auto loop_end = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double> loop_elapsed = loop_end - loop_start;
+    time_on_matix+=loop_elapsed.count();
+    counter++;
 }
 
 void MatrixOperations::matrixTranspose(const Matrix& mat1, Matrix& result) {

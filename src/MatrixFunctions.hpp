@@ -9,6 +9,7 @@
 #include <stdexcept>
 #include <string>
 #include "Matrix.hpp"
+#include <chrono>
 
 class MatrixOperations {
    public:
@@ -16,6 +17,8 @@ class MatrixOperations {
    std::ofstream MatixFile;
    inline bool isProblematic(float val);
    inline float safeValue(float val);
+   double time_on_matix = 0;
+   int counter=0;
    void blockAdd(Matrix&, int, int, Matrix&);
    void matrixMultiply(const Matrix& mat1, const Matrix& mat2, Matrix& result);
    void matrixTranspose( const Matrix& mat1, Matrix& result);
