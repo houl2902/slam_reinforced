@@ -16,6 +16,7 @@
 #include <thread>
 #include <chrono>
 
+
 class App {
     private:
         bool running;
@@ -40,6 +41,7 @@ class App {
         std::vector<std::pair<int,int>>  landmarks_slam;
         std::vector<Pose*> history_poses_struct;
         std::ifstream input_file;
+        
  
     public:
         App();
@@ -52,4 +54,3 @@ class App {
 
         void OnCleanup();
 };
- 
